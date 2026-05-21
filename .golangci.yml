@@ -1,0 +1,23 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - revive
+  exclusions:
+    rules:
+      - path: ^(cmd/|internal/).*
+        linters: [revive]
+        text: "(?i)(package-comments|exported:|comment on exported)"
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

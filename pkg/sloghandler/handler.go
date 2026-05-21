@@ -1,3 +1,5 @@
+// Package sloghandler provides a non-blocking slog handler that publishes
+// records to a local DevLogBus broker.
 package sloghandler
 
 import (
@@ -10,6 +12,7 @@ import (
 	"github.com/dan-sherwin/devlogbus/pkg/protocol"
 )
 
+// Options configures a DevLogBus slog handler.
 type Options struct {
 	SocketPath     string
 	Source         string
@@ -18,6 +21,7 @@ type Options struct {
 	PublishTimeout time.Duration
 }
 
+// Handler implements slog.Handler for DevLogBus publishing.
 type Handler struct {
 	sink   *sink
 	level  slog.Leveler
@@ -32,6 +36,7 @@ type sink struct {
 	publishTimeout time.Duration
 }
 
+// New creates a non-blocking slog handler backed by DevLogBus.
 func New(options Options) slog.Handler {
 	if options.Source == "" {
 		options.Source = "unknown"
@@ -57,10 +62,12 @@ func New(options Options) slog.Handler {
 	return &Handler{sink: s, level: options.Level, attrs: map[string]any{}}
 }
 
+// Enabled reports whether level is enabled.
 func (h *Handler) Enabled(_ context.Context, level slog.Level) bool {
 	return level >= h.level.Level()
 }
 
+// Handle queues a record for publishing.
 func (h *Handler) Handle(_ context.Context, record slog.Record) error {
 	out := protocol.Record{
 		Time:    record.Time,
@@ -85,6 +92,7 @@ func (h *Handler) Handle(_ context.Context, record slog.Record) error {
 	return nil
 }
 
+// WithAttrs returns a handler with additional attributes.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	clone := *h
 	clone.attrs = copyAttrs(h.attrs)
@@ -94,6 +102,7 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return &clone
 }
 
+// WithGroup returns a handler with a nested group.
 func (h *Handler) WithGroup(name string) slog.Handler {
 	if name == "" {
 		return h

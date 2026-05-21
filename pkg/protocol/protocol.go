@@ -1,3 +1,4 @@
+// Package protocol defines the wire records and filters used by DevLogBus.
 package protocol
 
 import (
@@ -6,14 +7,19 @@ import (
 	"time"
 )
 
+// MessageType identifies an envelope payload kind.
 type MessageType string
 
 const (
-	MessageTypeLog       MessageType = "log"
+	// MessageTypeLog carries a structured log record.
+	MessageTypeLog MessageType = "log"
+	// MessageTypeSubscribe carries a subscription request.
 	MessageTypeSubscribe MessageType = "subscribe"
-	MessageTypeError     MessageType = "error"
+	// MessageTypeError carries a broker-side error.
+	MessageTypeError MessageType = "error"
 )
 
+// Envelope is one newline-delimited JSON message on the broker socket.
 type Envelope struct {
 	Type      MessageType `json:"type"`
 	Record    *Record     `json:"record,omitempty"`
@@ -21,6 +27,7 @@ type Envelope struct {
 	Error     string      `json:"error,omitempty"`
 }
 
+// Record is a structured log event.
 type Record struct {
 	ID      string         `json:"id,omitempty"`
 	Time    time.Time      `json:"time"`
@@ -30,12 +37,14 @@ type Record struct {
 	Attrs   map[string]any `json:"attrs,omitempty"`
 }
 
+// Subscribe describes a broker subscription filter.
 type Subscribe struct {
 	Sources  []string `json:"sources,omitempty"`
 	MinLevel string   `json:"minLevel,omitempty"`
 	Replay   int      `json:"replay,omitempty"`
 }
 
+// NormalizeLevel canonicalizes common log-level spellings.
 func NormalizeLevel(level string) string {
 	switch strings.ToLower(strings.TrimSpace(level)) {
 	case "debug", "dbg":
@@ -51,6 +60,7 @@ func NormalizeLevel(level string) string {
 	}
 }
 
+// LevelValue returns the slog-compatible numeric value for a level.
 func LevelValue(level string) int {
 	switch NormalizeLevel(level) {
 	case "DEBUG":
@@ -66,6 +76,7 @@ func LevelValue(level string) int {
 	}
 }
 
+// Validate checks the required record fields.
 func (r Record) Validate() error {
 	if r.Source == "" {
 		return fmt.Errorf("source is required")
@@ -76,6 +87,7 @@ func (r Record) Validate() error {
 	return nil
 }
 
+// Matches reports whether record satisfies the subscription filter.
 func (s Subscribe) Matches(record Record) bool {
 	if s.MinLevel != "" && LevelValue(record.Level) < LevelValue(s.MinLevel) {
 		return false

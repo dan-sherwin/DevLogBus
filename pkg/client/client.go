@@ -1,3 +1,5 @@
+// Package client contains the Go client used to publish to and subscribe from a
+// local DevLogBus broker.
 package client
 
 import (
@@ -11,18 +13,22 @@ import (
 	"github.com/dan-sherwin/devlogbus/pkg/protocol"
 )
 
+// DefaultSocketName is the filename used for the default Unix socket.
 const DefaultSocketName = "devlogbus.sock"
 
+// Client publishes records to and subscribes records from a DevLogBus broker.
 type Client struct {
 	SocketPath string
 }
 
+// Subscription is an active broker subscription.
 type Subscription struct {
 	Records <-chan protocol.Record
 	Errors  <-chan error
 	conn    net.Conn
 }
 
+// DefaultSocketPath returns the default local broker socket path.
 func DefaultSocketPath() string {
 	if runtimeDir := os.Getenv("XDG_RUNTIME_DIR"); runtimeDir != "" {
 		return filepath.Join(runtimeDir, "devlogbus", DefaultSocketName)
@@ -30,6 +36,8 @@ func DefaultSocketPath() string {
 	return filepath.Join(os.TempDir(), "devlogbus", DefaultSocketName)
 }
 
+// New returns a client that uses socketPath, or the default socket path when
+// socketPath is empty.
 func New(socketPath string) *Client {
 	if socketPath == "" {
 		socketPath = DefaultSocketPath()
@@ -37,6 +45,7 @@ func New(socketPath string) *Client {
 	return &Client{SocketPath: socketPath}
 }
 
+// Publish sends one structured record to the broker.
 func (c *Client) Publish(ctx context.Context, record protocol.Record) error {
 	if record.Time.IsZero() {
 		return errors.New("record time is required")
@@ -50,7 +59,7 @@ func (c *Client) Publish(ctx context.Context, record protocol.Record) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	return json.NewEncoder(conn).Encode(protocol.Envelope{
 		Type:   protocol.MessageTypeLog,
@@ -58,6 +67,7 @@ func (c *Client) Publish(ctx context.Context, record protocol.Record) error {
 	})
 }
 
+// Subscribe opens a live subscription to broker records.
 func (c *Client) Subscribe(ctx context.Context, sub protocol.Subscribe) (*Subscription, error) {
 	conn, err := dial(ctx, c.SocketPath)
 	if err != nil {
@@ -77,7 +87,7 @@ func (c *Client) Subscribe(ctx context.Context, sub protocol.Subscribe) (*Subscr
 	go func() {
 		defer close(records)
 		defer close(errs)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		decoder := json.NewDecoder(conn)
 		for {
@@ -101,6 +111,7 @@ func (c *Client) Subscribe(ctx context.Context, sub protocol.Subscribe) (*Subscr
 	return &Subscription{Records: records, Errors: errs, conn: conn}, nil
 }
 
+// Close closes the underlying broker connection.
 func (s *Subscription) Close() error {
 	if s == nil || s.conn == nil {
 		return nil

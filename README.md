@@ -8,8 +8,14 @@ It is not a retention stack, alerting system, metrics backend, or production obs
 
 ```text
 cmd/
-  devlogbusd/        local broker daemon
+  devlogbusd/        local broker daemon entrypoint
   devlogbus/         CLI client, future TUI entrypoint
+
+internal/
+  devlogbusd/app/    service-template-style bootstrap app for the daemon
+  devlogbus/app/     cli-template-style bootstrap app for the CLI
+  completions/       shared shell-completion installer helpers
+  recordfmt/         shared human log formatting
 
 pkg/
   protocol/          wire messages and filtering helpers
@@ -25,7 +31,7 @@ webapps/
 Start the broker:
 
 ```bash
-go run ./cmd/devlogbusd
+go run ./cmd/devlogbusd run
 ```
 
 In another terminal, tail the stream:
@@ -51,3 +57,32 @@ logger := slog.New(sloghandler.New(sloghandler.Options{
 ```
 
 The handler uses a bounded queue and drops records when the broker is unavailable or the queue is full. Application logging should never block normal service work.
+
+## Bootstrap Apps
+
+The two Go binaries follow Dan's standard Go templates:
+
+- `devlogbusd` uses the service-style bootstrap: Kong commands, persistent settings, build info, shell completions, and systemd service commands.
+- `devlogbus` uses the CLI-style bootstrap: Kong commands, persistent settings, build info, and shell completions.
+
+Examples:
+
+```bash
+go run ./cmd/devlogbusd settings list active
+go run ./cmd/devlogbus settings set socket_path /tmp/devlogbus/devlogbus.sock
+go run ./cmd/devlogbus buildinfo
+```
+
+The importable Go packages stay in the root module for now:
+
+```text
+github.com/dan-sherwin/devlogbus/pkg/client
+github.com/dan-sherwin/devlogbus/pkg/protocol
+github.com/dan-sherwin/devlogbus/pkg/sloghandler
+```
+
+Run the local Go quality gate with:
+
+```bash
+./dev/ci-local.sh
+```
