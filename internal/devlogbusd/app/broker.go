@@ -165,6 +165,11 @@ func openBrokerListener(endpoint string) (brokerListener, error) {
 		if err != nil {
 			return brokerListener{}, err
 		}
+		if err := os.Chmod(socketPath, 0o666); err != nil {
+			_ = listener.Close()
+			_ = os.Remove(socketPath)
+			return brokerListener{}, err
+		}
 		return brokerListener{
 			Listener: listener,
 			network:  client.NetworkUnix,

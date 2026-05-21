@@ -20,10 +20,11 @@ This is a local developer workflow tool. Keep the broker boring and reliable, an
 
 ## Transports
 
-The default transport is newline-delimited JSON over a Unix domain socket. The
-configured broker endpoint can also be a TCP address such as `0.0.0.0:7422`,
-and the same publish, subscribe, and expunge protocol can run on an additional
-TCP listener for live troubleshooting across machines.
+The default transport is newline-delimited JSON over the stable Unix domain
+socket `/tmp/devlogbus/devlogbus.sock`. The configured broker endpoint can also
+be a TCP address such as `0.0.0.0:7422`, and the same publish, subscribe, and
+expunge protocol can run on an additional TCP listener for live troubleshooting
+across machines.
 
 ## Go App Shape
 

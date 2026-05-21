@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -24,6 +23,8 @@ const (
 	NetworkTCP = "tcp"
 	// DefaultSocketName is the filename used for the default Unix socket.
 	DefaultSocketName = "devlogbus.sock"
+	// DefaultSocketDir is the stable local directory used for the default Unix socket.
+	DefaultSocketDir = "/tmp/devlogbus"
 )
 
 // Options configures a broker client.
@@ -65,10 +66,7 @@ type Subscription struct {
 
 // DefaultSocketPath returns the default local broker socket path.
 func DefaultSocketPath() string {
-	if runtimeDir := os.Getenv("XDG_RUNTIME_DIR"); runtimeDir != "" {
-		return filepath.Join(runtimeDir, "devlogbus", DefaultSocketName)
-	}
-	return filepath.Join(os.TempDir(), "devlogbus", DefaultSocketName)
+	return filepath.Join(DefaultSocketDir, DefaultSocketName)
 }
 
 // New returns a client that uses endpoint, or the default socket path when

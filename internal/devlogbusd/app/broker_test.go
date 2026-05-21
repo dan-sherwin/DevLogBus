@@ -154,6 +154,28 @@ func TestClientExpungeRemovesBrokerReplayRecords(t *testing.T) {
 	}
 }
 
+func TestUnixBrokerSocketIsWritableByLocalClients(t *testing.T) {
+	socketPath := filepath.Join("/tmp", fmt.Sprintf("devlogbus-test-%d.sock", time.Now().UnixNano()))
+	listener, err := openBrokerListener(socketPath)
+	if err != nil {
+		t.Fatalf("open listener: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = listener.Close()
+		if listener.cleanup != nil {
+			listener.cleanup()
+		}
+	})
+
+	info, err := os.Stat(socketPath)
+	if err != nil {
+		t.Fatalf("stat socket: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o666 {
+		t.Fatalf("socket permissions = %#o, want 0666", got)
+	}
+}
+
 func TestTCPBrokerPublishAndSubscribe(t *testing.T) {
 	b := &broker{
 		maxRecords:  10,

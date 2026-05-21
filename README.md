@@ -38,7 +38,8 @@ go run ./cmd/devlogbusd run
 
 The broker listens on its configured endpoint for Go/CLI clients and on
 `127.0.0.1:7423` for browser clients by default. The default broker endpoint
-is a local Unix socket, but it can also be a TCP address like `0.0.0.0:7422`.
+is the stable local Unix socket `/tmp/devlogbus/devlogbus.sock`, but it can also
+be a TCP address like `0.0.0.0:7422`.
 Disable the browser endpoint with `--http ""`, or set a different address with
 `--http 127.0.0.1:7424`. Open `http://127.0.0.1:7423/` to use the embedded live
 viewer.

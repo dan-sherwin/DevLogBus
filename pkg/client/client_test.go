@@ -2,6 +2,12 @@ package client
 
 import "testing"
 
+func TestDefaultSocketPathIsStable(t *testing.T) {
+	if got := DefaultSocketPath(); got != "/tmp/devlogbus/devlogbus.sock" {
+		t.Fatalf("DefaultSocketPath = %q, want stable /tmp path", got)
+	}
+}
+
 func TestNewWithOptionsDefaultsToUnixSocket(t *testing.T) {
 	c := NewWithOptions(Options{})
 
