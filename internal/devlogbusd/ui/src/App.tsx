@@ -23,12 +23,6 @@ const apiBase = (
 ).replace(/\/$/, "");
 const maxVisibleRecords = 1000;
 const levels: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR"];
-const levelValue: Record<LogLevel, number> = {
-  DEBUG: -4,
-  INFO: 0,
-  WARN: 4,
-  ERROR: 8,
-};
 const levelClass: Record<LogLevel, string> = {
   DEBUG: "debug",
   INFO: "info",
@@ -99,13 +93,27 @@ function mergeRecord(records: LogRecord[], record: LogRecord): LogRecord[] {
   return Array.from(next.values()).slice(-maxVisibleRecords);
 }
 
+function toggleLevel(selected: LogLevel[], level: LogLevel): LogLevel[] {
+  if (selected.includes(level)) {
+    return selected.filter((item) => item !== level);
+  }
+  return levels.filter((item) => item === level || selected.includes(item));
+}
+
+function toggleSource(excluded: string[], source: string): string[] {
+  if (excluded.includes(source)) {
+    return excluded.filter((item) => item !== source);
+  }
+  return [...excluded, source].sort();
+}
+
 export default function App() {
   const [records, setRecords] = useState<LogRecord[]>([]);
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [paused, setPaused] = useState(false);
   const [search, setSearch] = useState("");
-  const [minimumLevel, setMinimumLevel] = useState<LogLevel>("DEBUG");
-  const [sourceFilter, setSourceFilter] = useState("all");
+  const [selectedLevels, setSelectedLevels] = useState<LogLevel[]>(levels);
+  const [excludedSources, setExcludedSources] = useState<string[]>([]);
   const [selectedID, setSelectedID] = useState("");
   const pausedRef = useRef(paused);
 
@@ -143,10 +151,10 @@ export default function App() {
     const query = search.trim().toLowerCase();
     return records.filter((record) => {
       const normalized = normalizeLevel(record.level);
-      if (levelValue[normalized] < levelValue[minimumLevel]) {
+      if (!selectedLevels.includes(normalized)) {
         return false;
       }
-      if (sourceFilter !== "all" && record.source !== sourceFilter) {
+      if (excludedSources.includes(record.source)) {
         return false;
       }
       if (query !== "" && !searchableText(record).includes(query)) {
@@ -154,13 +162,14 @@ export default function App() {
       }
       return true;
     });
-  }, [minimumLevel, records, search, sourceFilter]);
+  }, [excludedSources, records, search, selectedLevels]);
 
   const selected =
     filteredRecords.find((record) => record.id === selectedID) ?? filteredRecords.at(-1) ?? null;
 
   const clearRecords = () => {
     setRecords([]);
+    setExcludedSources([]);
     setSelectedID("");
   };
 
@@ -186,31 +195,41 @@ export default function App() {
           placeholder="Search message, source, or field"
           value={search}
         />
-        <select
-          aria-label="Minimum level"
-          onChange={(event) => setMinimumLevel(event.target.value as LogLevel)}
-          value={minimumLevel}
-        >
+        <div aria-label="Levels" className="levelToggles" role="group">
           {levels.map((level) => (
-            <option key={level}>{level}</option>
+            <button
+              aria-pressed={selectedLevels.includes(level)}
+              className={`levelToggle ${levelClass[level]}`}
+              key={level}
+              onClick={() => setSelectedLevels((current) => toggleLevel(current, level))}
+              type="button"
+            >
+              {level}
+            </button>
           ))}
-        </select>
-        <select
-          aria-label="Source"
-          onChange={(event) => setSourceFilter(event.target.value)}
-          value={sourceFilter}
-        >
-          <option value="all">all sources</option>
-          {sources.map((source) => (
-            <option key={source}>{source}</option>
-          ))}
-        </select>
+        </div>
         <button onClick={() => setPaused((value) => !value)} type="button">
           {paused ? "Resume" : "Pause"}
         </button>
         <button onClick={clearRecords} type="button">
           Clear
         </button>
+        {sources.length > 0 && (
+          <div aria-label="Sources" className="sourceToggles" role="group">
+            {sources.map((source) => (
+              <button
+                aria-pressed={!excludedSources.includes(source)}
+                className="sourceToggle"
+                key={source}
+                onClick={() => setExcludedSources((current) => toggleSource(current, source))}
+                title={source}
+                type="button"
+              >
+                {source}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="content">

@@ -87,13 +87,13 @@ p {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 140px 220px 92px 92px;
+  grid-template-columns: minmax(240px, 1fr) minmax(292px, auto) 92px 92px;
   gap: 10px;
 }
 
 .toolbar input,
 .toolbar select,
-.toolbar button {
+.toolbar > button {
   height: 38px;
   border: 1px solid #30363d;
   border-radius: 6px;
@@ -102,21 +102,95 @@ p {
   padding: 0 12px;
 }
 
-.toolbar button {
+.toolbar > button {
   cursor: pointer;
   background: #242a31;
 }
 
 .toolbar input:focus,
 .toolbar select:focus,
-.toolbar button:focus-visible {
+.toolbar > button:focus-visible {
   border-color: #51a7d9;
   outline: 2px solid rgb(81 167 217 / 24%);
   outline-offset: 1px;
 }
 
-.toolbar button:hover {
+.toolbar > button:hover {
   background: #2c343d;
+}
+
+.levelToggles {
+  min-width: 292px;
+  height: 38px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.levelToggle {
+  height: 38px;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.36;
+  padding: 0 8px;
+}
+
+.levelToggle[aria-pressed="true"] {
+  border-color: currentColor;
+  opacity: 1;
+}
+
+.levelToggle:focus-visible {
+  border-color: #51a7d9;
+  outline: 2px solid rgb(81 167 217 / 24%);
+  outline-offset: 1px;
+}
+
+.levelToggle:hover {
+  opacity: 0.82;
+}
+
+.sourceToggles {
+  grid-column: 1 / -1;
+  min-height: 34px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sourceToggle {
+  max-width: 240px;
+  min-width: 86px;
+  height: 34px;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background: #181b1f;
+  color: #9aa7b3;
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sourceToggle[aria-pressed="true"] {
+  border-color: #51a7d9;
+  background: #202832;
+  color: #eef2f6;
+}
+
+.sourceToggle:focus-visible {
+  border-color: #51a7d9;
+  outline: 2px solid rgb(81 167 217 / 24%);
+  outline-offset: 1px;
+}
+
+.sourceToggle:hover {
+  background: #222932;
 }
 
 .content {
