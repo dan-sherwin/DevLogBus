@@ -8,9 +8,9 @@ import (
 )
 
 func SettingsFile(appName string) (string, error) {
-	configDir, err := userConfigDir()
+	configDir, err := defaultConfigDir()
 	if err != nil {
-		return "", fmt.Errorf("resolve user config dir: %w", err)
+		return "", fmt.Errorf("resolve settings config dir: %w", err)
 	}
 	appConfigDir := filepath.Join(configDir, appName)
 	if err := os.MkdirAll(appConfigDir, 0o755); err != nil {
@@ -19,15 +19,15 @@ func SettingsFile(appName string) (string, error) {
 	return filepath.Join(appConfigDir, "settings.db"), nil
 }
 
-func userConfigDir() (string, error) {
-	configDir, err := os.UserConfigDir()
-	if err == nil {
-		return configDir, nil
-	}
-	if fallback, ok := serviceConfigDir(runtime.GOOS, os.Geteuid()); ok {
+func defaultConfigDir() (string, error) {
+	return configDir(runtime.GOOS, os.Geteuid(), os.UserConfigDir)
+}
+
+func configDir(goos string, euid int, userConfigDir func() (string, error)) (string, error) {
+	if fallback, ok := serviceConfigDir(goos, euid); ok {
 		return fallback, nil
 	}
-	return "", err
+	return userConfigDir()
 }
 
 func serviceConfigDir(goos string, euid int) (string, bool) {
