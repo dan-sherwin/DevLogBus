@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 	"time"
 
+	devlogbusui "github.com/dan-sherwin/devlogbus/internal/devlogbusd/ui"
 	"github.com/dan-sherwin/devlogbus/pkg/protocol"
 )
 
@@ -30,6 +33,11 @@ func startHTTPServer(ctx context.Context, address string, b *broker) (func(), er
 	mux.HandleFunc("/api/health", withCORS(handleHTTPHealth))
 	mux.HandleFunc("/api/records", withCORS(b.handleHTTPRecords))
 	mux.HandleFunc("/api/stream", withCORS(b.handleHTTPStream))
+	uiFS, err := devlogbusui.DistFS()
+	if err != nil {
+		return nil, fmt.Errorf("load ui assets: %w", err)
+	}
+	mux.HandleFunc("/", handleUI(uiFS))
 
 	server := &http.Server{
 		Handler:           mux,
@@ -82,6 +90,34 @@ func withCORS(next http.HandlerFunc) http.HandlerFunc {
 
 func handleHTTPHealth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func handleUI(uiFS fs.FS) http.HandlerFunc {
+	fileServer := http.FileServer(http.FS(uiFS))
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
+		if name != "" && uiFileExists(uiFS, name) {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+		http.ServeFileFS(w, r, uiFS, "index.html")
+	}
+}
+
+func uiFileExists(uiFS fs.FS, name string) bool {
+	file, err := uiFS.Open(name)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = file.Close() }()
+
+	info, err := file.Stat()
+	return err == nil && !info.IsDir()
 }
 
 func (b *broker) handleHTTPRecords(w http.ResponseWriter, r *http.Request) {

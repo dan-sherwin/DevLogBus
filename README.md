@@ -13,6 +13,7 @@ cmd/
 
 internal/
   devlogbusd/app/    service-template-style bootstrap app for the daemon
+  devlogbusd/ui/     React live viewer embedded into devlogbusd
   devlogbus/app/     cli-template-style bootstrap app for the CLI
   completions/       shared shell-completion installer helpers
   recordfmt/         shared human log formatting
@@ -22,8 +23,6 @@ pkg/
   client/            Go client for the broker
   sloghandler/       non-blocking slog.Handler publisher
 
-webapps/
-  devlogbus-ui/      React live viewer
 ```
 
 ## Quick Start
@@ -37,6 +36,7 @@ go run ./cmd/devlogbusd run
 The broker listens on the Unix socket for Go/CLI clients and on
 `127.0.0.1:7423` for browser clients by default. Disable the browser endpoint
 with `--http ""`, or set a different address with `--http 127.0.0.1:7424`.
+Open `http://127.0.0.1:7423/` to use the embedded live viewer.
 
 In another terminal, tail the stream:
 
@@ -50,10 +50,10 @@ Emit a test record:
 go run ./cmd/devlogbus emit --source demo --level warn --message "catalog unavailable" --attr service=billing_svc
 ```
 
-Run the live browser viewer:
+Run the live browser viewer directly during UI development:
 
 ```bash
-npm --prefix webapps/devlogbus-ui run dev
+VITE_DEVLOGBUS_API_URL=http://127.0.0.1:7423 npm --prefix internal/devlogbusd/ui run dev
 ```
 
 ## Go slog Handler

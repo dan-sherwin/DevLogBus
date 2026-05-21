@@ -4,8 +4,15 @@ trap "rm -f coverage.out" EXIT
 
 command -v golangci-lint >/dev/null 2>&1 || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 command -v govulncheck >/dev/null 2>&1 || go install golang.org/x/vuln/cmd/govulncheck@latest
+command -v npm >/dev/null 2>&1 || {
+  echo "npm is required to build the embedded devlogbusd UI"
+  exit 1
+}
 
 export GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.3}"
+
+npm --prefix internal/devlogbusd/ui ci
+npm --prefix internal/devlogbusd/ui run build
 
 go mod tidy
 go build ./...

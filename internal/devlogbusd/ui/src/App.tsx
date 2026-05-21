@@ -19,7 +19,7 @@ type ViteImportMeta = ImportMeta & {
 };
 
 const apiBase = (
-  (import.meta as ViteImportMeta).env?.VITE_DEVLOGBUS_API_URL ?? "http://127.0.0.1:7423"
+  (import.meta as ViteImportMeta).env?.VITE_DEVLOGBUS_API_URL ?? ""
 ).replace(/\/$/, "");
 const maxVisibleRecords = 1000;
 const levels: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR"];

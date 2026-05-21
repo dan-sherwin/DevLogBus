@@ -10,7 +10,12 @@ coverage.out
 node_modules/
 webapps/*/node_modules/
 webapps/*/dist/
+internal/devlogbusd/ui/node_modules/
 *.tsbuildinfo
+
+# devlogbusd embeds its production UI bundle.
+!internal/devlogbusd/ui/dist/
+!internal/devlogbusd/ui/dist/**
 
 # Local runtime
 *.sock
