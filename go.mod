@@ -1,6 +1,6 @@
 module github.com/dan-sherwin/devlogbus
 
-go 1.26.3
+go 1.26.2
 
 require (
 	github.com/alecthomas/kong v1.15.0
