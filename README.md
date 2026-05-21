@@ -23,7 +23,7 @@ pkg/
   sloghandler/       non-blocking slog.Handler publisher
 
 webapps/
-  devlogbus-ui/      future React UI
+  devlogbus-ui/      React live viewer
 ```
 
 ## Quick Start
@@ -33,6 +33,10 @@ Start the broker:
 ```bash
 go run ./cmd/devlogbusd run
 ```
+
+The broker listens on the Unix socket for Go/CLI clients and on
+`127.0.0.1:7423` for browser clients by default. Disable the browser endpoint
+with `--http ""`, or set a different address with `--http 127.0.0.1:7424`.
 
 In another terminal, tail the stream:
 
@@ -44,6 +48,12 @@ Emit a test record:
 
 ```bash
 go run ./cmd/devlogbus emit --source demo --level warn --message "catalog unavailable" --attr service=billing_svc
+```
+
+Run the live browser viewer:
+
+```bash
+npm --prefix webapps/devlogbus-ui run dev
 ```
 
 ## Go slog Handler

@@ -22,9 +22,10 @@ import (
 
 type (
 	RunCommand struct {
-		SocketPath string `name:"socket" default:"${socket_path}" help:"Unix socket path"`
-		MaxRecords int    `name:"max-records" default:"${max_records}" help:"Records to retain in memory"`
-		Echo       bool   `name:"echo" default:"${echo}" help:"Print received records to stdout"`
+		SocketPath  string `name:"socket" default:"${socket_path}" help:"Unix socket path"`
+		HTTPAddress string `name:"http" default:"${http_listen_address}" help:"HTTP listen address for browser clients; empty disables HTTP"`
+		MaxRecords  int    `name:"max-records" default:"${max_records}" help:"Records to retain in memory"`
+		Echo        bool   `name:"echo" default:"${echo}" help:"Print received records to stdout"`
 	}
 	broker struct {
 		mu          sync.RWMutex
@@ -47,6 +48,7 @@ func (c *RunCommand) Run() error {
 	}
 
 	SocketPath = c.SocketPath
+	HTTPListenAddress = c.HTTPAddress
 	MaxRecords = c.MaxRecords
 	Echo = c.Echo
 
@@ -65,6 +67,12 @@ func (c *RunCommand) Run() error {
 		subscribers: map[int]subscriber{},
 		echo:        c.Echo,
 	}
+	cleanupHTTP, err := startHTTPServer(ctx, c.HTTPAddress, b)
+	if err != nil {
+		return err
+	}
+	defer cleanupHTTP()
+
 	return run(ctx, c.SocketPath, b)
 }
 
@@ -222,8 +230,5 @@ func (b *broker) removeSubscriber(id int) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if sub, ok := b.subscribers[id]; ok {
-		close(sub.ch)
-		delete(b.subscribers, id)
-	}
+	delete(b.subscribers, id)
 }

@@ -9,10 +9,11 @@ import (
 )
 
 var (
-	LoggingLevel = "debug"
-	SocketPath   = client.DefaultSocketPath()
-	MaxRecords   = 5000
-	Echo         = true
+	LoggingLevel      = "debug"
+	SocketPath        = client.DefaultSocketPath()
+	HTTPListenAddress = "127.0.0.1:7423"
+	MaxRecords        = 5000
+	Echo              = true
 )
 
 func init() {
@@ -26,6 +27,15 @@ func init() {
 				return fmt.Errorf("socket_path cannot be empty")
 			}
 			SocketPath = s
+			return nil
+		},
+	})
+	app_settings.RegisterSetting(&app_settings.Setting{
+		Name:        "http_listen_address",
+		Description: "HTTP listen address for browser clients; empty disables HTTP",
+		GetFunc:     func() string { return HTTPListenAddress },
+		SetFunc: func(s string) error {
+			HTTPListenAddress = s
 			return nil
 		},
 	})
