@@ -12,20 +12,29 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/dan-sherwin/devlogbus/internal/recordfmt"
+	"github.com/dan-sherwin/devlogbus/pkg/client"
 	"github.com/dan-sherwin/devlogbus/pkg/protocol"
 )
 
 type (
 	RunCommand struct {
-		SocketPath  string `name:"socket" default:"${socket_path}" help:"Unix socket path"`
+		Endpoint    string `name:"endpoint" default:"${endpoint}" help:"Primary broker endpoint: Unix socket path, unix:/path.sock, tcp://host:port, or host:port"`
+		TCPAddress  string `name:"tcp" default:"${tcp_listen_address}" help:"Additional TCP listen address for Go/CLI clients; empty disables the extra listener"`
 		HTTPAddress string `name:"http" default:"${http_listen_address}" help:"HTTP listen address for browser clients; empty disables HTTP"`
 		MaxRecords  int    `name:"max-records" default:"${max_records}" help:"Records to retain in memory"`
 		Echo        bool   `name:"echo" default:"${echo}" help:"Print received records to stdout"`
+	}
+	brokerListener struct {
+		net.Listener
+		network string
+		address string
+		cleanup func()
 	}
 	broker struct {
 		mu          sync.RWMutex
@@ -47,7 +56,12 @@ func (c *RunCommand) Run() error {
 		return fmt.Errorf("max-records must be greater than zero")
 	}
 
-	SocketPath = c.SocketPath
+	if err := setEndpoint(c.Endpoint); err != nil {
+		return err
+	}
+	if err := setTCPListenAddress(c.TCPAddress); err != nil {
+		return err
+	}
 	HTTPListenAddress = c.HTTPAddress
 	MaxRecords = c.MaxRecords
 	Echo = c.Echo
@@ -73,37 +87,135 @@ func (c *RunCommand) Run() error {
 	}
 	defer cleanupHTTP()
 
-	return run(ctx, c.SocketPath, b)
+	return run(ctx, Endpoint, TCPListenAddress, b)
 }
 
-func run(ctx context.Context, socketPath string, b *broker) error {
-	if err := os.MkdirAll(filepath.Dir(socketPath), 0o755); err != nil {
-		return err
-	}
-	if err := os.Remove(socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-
-	listener, err := net.Listen("unix", socketPath)
+func run(ctx context.Context, endpoint string, tcpAddress string, b *broker) error {
+	listeners, err := openBrokerListeners(endpoint, tcpAddress)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = listener.Close() }()
-	defer func() { _ = os.Remove(socketPath) }()
-
-	slog.Info("devlogbusd listening", slog.String("socket", socketPath))
-	go func() {
-		<-ctx.Done()
-		_ = listener.Close()
+	defer func() {
+		for _, listener := range listeners {
+			_ = listener.Close()
+			if listener.cleanup != nil {
+				listener.cleanup()
+			}
+		}
 	}()
 
+	var wg sync.WaitGroup
+	for _, listener := range listeners {
+		listener := listener
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			serveBrokerListener(ctx, listener, b)
+		}()
+	}
+
+	<-ctx.Done()
+	for _, listener := range listeners {
+		_ = listener.Close()
+	}
+	wg.Wait()
+	return nil
+}
+
+func openBrokerListeners(endpoint string, tcpAddress string) ([]brokerListener, error) {
+	listeners := make([]brokerListener, 0, 2)
+
+	listener, err := openBrokerListener(endpoint)
+	if err != nil {
+		return nil, err
+	}
+	listeners = append(listeners, listener)
+	logBrokerListener(listener)
+
+	tcpAddress = strings.TrimSpace(tcpAddress)
+	if tcpAddress != "" {
+		listener, err := openBrokerListener("tcp:" + tcpAddress)
+		if err != nil {
+			cleanupBrokerListeners(listeners)
+			return nil, err
+		}
+		listeners = append(listeners, listener)
+		logBrokerListener(listener)
+	}
+
+	return listeners, nil
+}
+
+func openBrokerListener(endpoint string) (brokerListener, error) {
+	resolved, err := client.ParseEndpoint(endpoint)
+	if err != nil {
+		return brokerListener{}, err
+	}
+
+	switch resolved.Network {
+	case client.NetworkUnix:
+		socketPath := resolved.SocketPath
+		if err := os.MkdirAll(filepath.Dir(socketPath), 0o755); err != nil {
+			return brokerListener{}, err
+		}
+		if err := os.Remove(socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return brokerListener{}, err
+		}
+		listener, err := net.Listen(client.NetworkUnix, socketPath)
+		if err != nil {
+			return brokerListener{}, err
+		}
+		return brokerListener{
+			Listener: listener,
+			network:  client.NetworkUnix,
+			address:  socketPath,
+			cleanup:  func() { _ = os.Remove(socketPath) },
+		}, nil
+	case client.NetworkTCP:
+		listener, err := net.Listen(client.NetworkTCP, resolved.Address)
+		if err != nil {
+			return brokerListener{}, err
+		}
+		return brokerListener{
+			Listener: listener,
+			network:  client.NetworkTCP,
+			address:  listener.Addr().String(),
+		}, nil
+	default:
+		return brokerListener{}, fmt.Errorf("unsupported broker endpoint network %q", resolved.Network)
+	}
+}
+
+func cleanupBrokerListeners(listeners []brokerListener) {
+	for _, listener := range listeners {
+		_ = listener.Close()
+		if listener.cleanup != nil {
+			listener.cleanup()
+		}
+	}
+}
+
+func logBrokerListener(listener brokerListener) {
+	slog.Info(
+		"devlogbusd listening",
+		slog.String("network", listener.network),
+		slog.String("address", listener.address),
+	)
+}
+
+func serveBrokerListener(ctx context.Context, listener brokerListener, b *broker) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			if ctx.Err() != nil {
-				return nil
+				return
 			}
-			slog.Warn("accept failed", slog.String("error", err.Error()))
+			slog.Warn(
+				"accept failed",
+				slog.String("network", listener.network),
+				slog.String("address", listener.address),
+				slog.String("error", err.Error()),
+			)
 			continue
 		}
 		go b.handleConn(conn)
@@ -136,6 +248,18 @@ func (b *broker) handleConn(conn net.Conn) {
 			}
 			b.stream(conn, sub)
 			return
+		case protocol.MessageTypeExpunge:
+			source := ""
+			if env.Expunge != nil {
+				source = strings.TrimSpace(env.Expunge.Source)
+			}
+			_ = json.NewEncoder(conn).Encode(protocol.Envelope{
+				Type: protocol.MessageTypeExpungeResult,
+				ExpungeResult: &protocol.ExpungeResult{
+					Expunged: b.expunge(source),
+				},
+			})
+			return
 		default:
 			_ = json.NewEncoder(conn).Encode(protocol.Envelope{
 				Type:  protocol.MessageTypeError,
@@ -158,10 +282,7 @@ func (b *broker) publish(record protocol.Record) {
 		record.ID = fmt.Sprintf("%d", b.nextRecord)
 	}
 	b.ring = append(b.ring, record)
-	if len(b.ring) > b.maxRecords {
-		copy(b.ring, b.ring[len(b.ring)-b.maxRecords:])
-		b.ring = b.ring[:b.maxRecords]
-	}
+	b.pruneSourceLocked(record.Source)
 	subscribers := make([]subscriber, 0, len(b.subscribers))
 	for _, sub := range b.subscribers {
 		if sub.filter.Matches(record) {
@@ -181,12 +302,72 @@ func (b *broker) publish(record protocol.Record) {
 	}
 }
 
+func (b *broker) pruneSourceLocked(source string) {
+	sourceRecords := 0
+	for _, record := range b.ring {
+		if record.Source == source {
+			sourceRecords++
+		}
+	}
+	drop := sourceRecords - b.maxRecords
+	if drop <= 0 {
+		return
+	}
+
+	write := 0
+	for _, record := range b.ring {
+		if record.Source == source && drop > 0 {
+			drop--
+			continue
+		}
+		b.ring[write] = record
+		write++
+	}
+	for i := write; i < len(b.ring); i++ {
+		b.ring[i] = protocol.Record{}
+	}
+	b.ring = b.ring[:write]
+}
+
+func (b *broker) expunge(source string) int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if source == "" {
+		expunged := len(b.ring)
+		for i := range b.ring {
+			b.ring[i] = protocol.Record{}
+		}
+		b.ring = nil
+		return expunged
+	}
+
+	expunged := 0
+	write := 0
+	for _, record := range b.ring {
+		if record.Source == source {
+			expunged++
+			continue
+		}
+		b.ring[write] = record
+		write++
+	}
+	for i := write; i < len(b.ring); i++ {
+		b.ring[i] = protocol.Record{}
+	}
+	b.ring = b.ring[:write]
+	return expunged
+}
+
 func (b *broker) stream(conn net.Conn, sub protocol.Subscribe) {
 	encoder := json.NewEncoder(conn)
 	for _, record := range b.replay(sub) {
 		if err := encoder.Encode(protocol.Envelope{Type: protocol.MessageTypeLog, Record: &record}); err != nil {
 			return
 		}
+	}
+	if err := encoder.Encode(protocol.Envelope{Type: protocol.MessageTypeReplayComplete}); err != nil {
+		return
 	}
 
 	id, ch := b.addSubscriber(sub)
@@ -209,10 +390,37 @@ func (b *broker) replay(sub protocol.Subscribe) []protocol.Record {
 			records = append(records, record)
 		}
 	}
+	if sub.ReplayPerSource > 0 {
+		records = limitReplayPerSource(records, sub.ReplayPerSource)
+	}
 	if sub.Replay > 0 && len(records) > sub.Replay {
 		records = records[len(records)-sub.Replay:]
 	}
 	return records
+}
+
+func limitReplayPerSource(records []protocol.Record, limit int) []protocol.Record {
+	if limit <= 0 || len(records) == 0 {
+		return records
+	}
+	counts := map[string]int{}
+	include := make([]bool, len(records))
+	for i := len(records) - 1; i >= 0; i-- {
+		source := records[i].Source
+		if counts[source] >= limit {
+			continue
+		}
+		counts[source]++
+		include[i] = true
+	}
+
+	next := records[:0]
+	for i, record := range records {
+		if include[i] {
+			next = append(next, record)
+		}
+	}
+	return next
 }
 
 func (b *broker) addSubscriber(sub protocol.Subscribe) (int, chan protocol.Record) {

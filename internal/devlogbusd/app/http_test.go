@@ -45,8 +45,38 @@ func TestHTTPRecordsUsesReplayFilters(t *testing.T) {
 	}
 }
 
+func TestHTTPExpungeRecordsRemovesServerRecords(t *testing.T) {
+	b := &broker{
+		maxRecords:  10,
+		subscribers: map[int]subscriber{},
+	}
+	now := time.Now()
+	b.publish(protocol.Record{Time: now, Level: "info", Source: "ems", Message: "boot"})
+	b.publish(protocol.Record{Time: now, Level: "warn", Source: "billing", Message: "catalog unavailable"})
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/records/expunge?source=billing", nil)
+	rr := httptest.NewRecorder()
+
+	b.handleHTTPExpungeRecords(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	var response map[string]int
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response["expunged"] != 1 {
+		t.Fatalf("expunged = %d, want 1", response["expunged"])
+	}
+	records := b.replay(protocol.Subscribe{})
+	if len(records) != 1 || records[0].Source != "ems" {
+		t.Fatalf("records after expunge = %#v, want ems only", records)
+	}
+}
+
 func TestSubscribeFromRequestParsesSources(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/api/stream?minLevel=info&source=ems,billing&source=tenant&replay=25", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/stream?minLevel=info&source=ems,billing&source=tenant&replay=25&replayPerSource=50", nil)
 
 	sub := subscribeFromRequest(req)
 
@@ -55,6 +85,9 @@ func TestSubscribeFromRequestParsesSources(t *testing.T) {
 	}
 	if sub.Replay != 25 {
 		t.Fatalf("Replay = %d, want 25", sub.Replay)
+	}
+	if sub.ReplayPerSource != 50 {
+		t.Fatalf("ReplayPerSource = %d, want 50", sub.ReplayPerSource)
 	}
 	want := []string{"ems", "billing", "tenant"}
 	if len(sub.Sources) != len(want) {

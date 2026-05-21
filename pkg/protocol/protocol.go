@@ -15,16 +15,24 @@ const (
 	MessageTypeLog MessageType = "log"
 	// MessageTypeSubscribe carries a subscription request.
 	MessageTypeSubscribe MessageType = "subscribe"
+	// MessageTypeReplayComplete marks the end of the initial replay batch.
+	MessageTypeReplayComplete MessageType = "replay_complete"
+	// MessageTypeExpunge carries a request to delete replay-buffer records.
+	MessageTypeExpunge MessageType = "expunge"
+	// MessageTypeExpungeResult carries the count of deleted replay-buffer records.
+	MessageTypeExpungeResult MessageType = "expunge_result"
 	// MessageTypeError carries a broker-side error.
 	MessageTypeError MessageType = "error"
 )
 
 // Envelope is one newline-delimited JSON message on the broker socket.
 type Envelope struct {
-	Type      MessageType `json:"type"`
-	Record    *Record     `json:"record,omitempty"`
-	Subscribe *Subscribe  `json:"subscribe,omitempty"`
-	Error     string      `json:"error,omitempty"`
+	Type          MessageType    `json:"type"`
+	Record        *Record        `json:"record,omitempty"`
+	Subscribe     *Subscribe     `json:"subscribe,omitempty"`
+	Expunge       *Expunge       `json:"expunge,omitempty"`
+	ExpungeResult *ExpungeResult `json:"expungeResult,omitempty"`
+	Error         string         `json:"error,omitempty"`
 }
 
 // Record is a structured log event.
@@ -39,9 +47,20 @@ type Record struct {
 
 // Subscribe describes a broker subscription filter.
 type Subscribe struct {
-	Sources  []string `json:"sources,omitempty"`
-	MinLevel string   `json:"minLevel,omitempty"`
-	Replay   int      `json:"replay,omitempty"`
+	Sources         []string `json:"sources,omitempty"`
+	MinLevel        string   `json:"minLevel,omitempty"`
+	Replay          int      `json:"replay,omitempty"`
+	ReplayPerSource int      `json:"replayPerSource,omitempty"`
+}
+
+// Expunge describes a broker replay-buffer delete request.
+type Expunge struct {
+	Source string `json:"source,omitempty"`
+}
+
+// ExpungeResult describes the outcome of a replay-buffer delete request.
+type ExpungeResult struct {
+	Expunged int `json:"expunged"`
 }
 
 // NormalizeLevel canonicalizes common log-level spellings.

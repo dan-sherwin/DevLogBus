@@ -10,11 +10,14 @@ It is not a retention stack, alerting system, metrics backend, or production obs
 cmd/
   devlogbusd/        local broker daemon entrypoint
   devlogbus/         CLI client, future TUI entrypoint
+  devlogbus-journal-bridge/
+                     Linux journald-to-DevLogBus bridge
 
 internal/
   devlogbusd/app/    service-template-style bootstrap app for the daemon
   devlogbusd/ui/     React live viewer embedded into devlogbusd
   devlogbus/app/     cli-template-style bootstrap app for the CLI
+  journalbridge/app/ journald bridge app
   completions/       shared shell-completion installer helpers
   recordfmt/         shared human log formatting
 
@@ -33,10 +36,27 @@ Start the broker:
 go run ./cmd/devlogbusd run
 ```
 
-The broker listens on the Unix socket for Go/CLI clients and on
-`127.0.0.1:7423` for browser clients by default. Disable the browser endpoint
-with `--http ""`, or set a different address with `--http 127.0.0.1:7424`.
-Open `http://127.0.0.1:7423/` to use the embedded live viewer.
+The broker listens on its configured endpoint for Go/CLI clients and on
+`127.0.0.1:7423` for browser clients by default. The default broker endpoint
+is a local Unix socket, but it can also be a TCP address like `0.0.0.0:7422`.
+Disable the browser endpoint with `--http ""`, or set a different address with
+`--http 127.0.0.1:7424`. Open `http://127.0.0.1:7423/` to use the embedded live
+viewer.
+
+To expose the broker to another machine during active troubleshooting, run the
+primary endpoint on TCP:
+
+```bash
+go run ./cmd/devlogbusd run --endpoint 0.0.0.0:7422
+go run ./cmd/devlogbus tail --endpoint prod-box:7422 --replay 50
+```
+
+On a Linux host, bridge systemd journal records into that remote broker:
+
+```bash
+go run ./cmd/devlogbus-journal-bridge run --endpoint tcp://devbox:7422 --since now
+go run ./cmd/devlogbus-journal-bridge run --endpoint tcp://devbox:7422 --tail 100 --match _SYSTEMD_UNIT=billing.service
+```
 
 In another terminal, tail the stream:
 
@@ -44,10 +64,24 @@ In another terminal, tail the stream:
 go run ./cmd/devlogbus tail --replay 50
 ```
 
+Or open the terminal UI:
+
+```bash
+go run ./cmd/devlogbus tui
+go run ./cmd/devlogbus tui --endpoint prod-box:7422 --replay-per-source 500
+```
+
 Emit a test record:
 
 ```bash
 go run ./cmd/devlogbus emit --source demo --level warn --message "catalog unavailable" --attr service=billing_svc
+```
+
+Expunge replay records from the broker:
+
+```bash
+go run ./cmd/devlogbus expunge --source demo
+go run ./cmd/devlogbus expunge --all
 ```
 
 Run the live browser viewer directly during UI development:
@@ -66,7 +100,19 @@ logger := slog.New(sloghandler.New(sloghandler.Options{
 }))
 ```
 
-The handler uses a bounded queue and drops records when the broker is unavailable or the queue is full. Application logging should never block normal service work.
+For remote troubleshooting, point the handler at the TCP listener:
+
+```go
+logger := slog.New(sloghandler.New(sloghandler.Options{
+    Source:   "event_management_svc",
+    Endpoint: "devbox:7422",
+}))
+```
+
+The handler uses a bounded queue and drops records when the broker is
+unavailable or the queue is full. It keeps a persistent publisher connection and
+reconnects after transport errors. Application logging should never block normal
+service work.
 
 ## Bootstrap Apps
 
@@ -74,14 +120,23 @@ The two Go binaries follow Dan's standard Go templates:
 
 - `devlogbusd` uses the service-style bootstrap: Kong commands, persistent settings, build info, shell completions, and systemd service commands.
 - `devlogbus` uses the CLI-style bootstrap: Kong commands, persistent settings, build info, and shell completions.
+- `devlogbus-journal-bridge` uses a small CLI bootstrap and streams Linux journald records to any DevLogBus broker endpoint.
 
 Examples:
 
 ```bash
 go run ./cmd/devlogbusd settings list active
-go run ./cmd/devlogbus settings set socket_path /tmp/devlogbus/devlogbus.sock
+go run ./cmd/devlogbusd settings set endpoint /tmp/devlogbus/devlogbus.sock
+go run ./cmd/devlogbusd settings set endpoint 0.0.0.0:7422
+go run ./cmd/devlogbus settings set endpoint /tmp/devlogbus/devlogbus.sock
+go run ./cmd/devlogbus settings set endpoint prod-box:7422
 go run ./cmd/devlogbus buildinfo
 ```
+
+`devlogbusd` retains `max_records` per source in memory so a noisy process does
+not push quiet sources out of the replay buffer. The terminal UI requests replay
+records per source as well; use `--replay-per-source` to tune that startup
+window.
 
 The importable Go packages stay in the root module for now:
 

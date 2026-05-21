@@ -32,6 +32,7 @@ func startHTTPServer(ctx context.Context, address string, b *broker) (func(), er
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", withCORS(handleHTTPHealth))
 	mux.HandleFunc("/api/records", withCORS(b.handleHTTPRecords))
+	mux.HandleFunc("/api/records/expunge", withCORSMethods(b.handleHTTPExpungeRecords, http.MethodDelete))
 	mux.HandleFunc("/api/stream", withCORS(b.handleHTTPStream))
 	uiFS, err := devlogbusui.DistFS()
 	if err != nil {
@@ -72,15 +73,24 @@ func startHTTPServer(ctx context.Context, address string, b *broker) (func(), er
 }
 
 func withCORS(next http.HandlerFunc) http.HandlerFunc {
+	return withCORSMethods(next, http.MethodGet)
+}
+
+func withCORSMethods(next http.HandlerFunc, methods ...string) http.HandlerFunc {
+	allowedMethods := map[string]struct{}{}
+	for _, method := range methods {
+		allowedMethods[method] = struct{}{}
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", strings.Join(append(methods, http.MethodOptions), ", "))
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		if r.Method != http.MethodGet {
+		if _, ok := allowedMethods[r.Method]; !ok {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -122,6 +132,11 @@ func uiFileExists(uiFS fs.FS, name string) bool {
 
 func (b *broker) handleHTTPRecords(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, b.replay(subscribeFromRequest(r)))
+}
+
+func (b *broker) handleHTTPExpungeRecords(w http.ResponseWriter, r *http.Request) {
+	source := strings.TrimSpace(r.URL.Query().Get("source"))
+	writeJSON(w, http.StatusOK, map[string]int{"expunged": b.expunge(source)})
 }
 
 func (b *broker) handleHTTPStream(w http.ResponseWriter, r *http.Request) {
@@ -175,6 +190,9 @@ func subscribeFromRequest(r *http.Request) protocol.Subscribe {
 	}
 	if replay, err := strconv.Atoi(query.Get("replay")); err == nil && replay > 0 {
 		sub.Replay = replay
+	}
+	if replayPerSource, err := strconv.Atoi(firstNonEmpty(query.Get("replayPerSource"), query.Get("replay-per-source"), query.Get("replay_per_source"))); err == nil && replayPerSource > 0 {
+		sub.ReplayPerSource = replayPerSource
 	}
 	return sub
 }

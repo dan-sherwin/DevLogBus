@@ -1,11 +1,61 @@
 :root {
+  --app-bg: #101214;
+  --app-bg-shine: rgb(255 255 255 / 3%);
+  --panel-bg: #15181c;
+  --control-bg: #181b1f;
+  --control-strong: #242a31;
+  --control-hover: #222932;
+  --control-hover-strong: #2c343d;
+  --control-active: #203140;
+  --border: #30363d;
+  --border-focus: #51a7d9;
+  --text-main: #eef2f6;
+  --text-soft: #c4ccd4;
+  --text-muted: #9aa7b3;
+  --detail-text: #f4f7fa;
+  --menu-shadow: rgb(0 0 0 / 34%);
+  --destructive-hover: #341d24;
+  --debug-text: #aeb8c2;
+  --debug-bg: #2b3138;
+  --info-text: #8ce8ba;
+  --info-bg: #12352a;
+  --warn-text: #ffd47f;
+  --warn-bg: #3b2d12;
+  --error-text: #ffa0a0;
+  --error-bg: #431f25;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  color: #eef2f6;
-  background: #101214;
+  color: var(--text-main);
+  background: var(--app-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+:root[data-theme="light"] {
+  --app-bg: #f4f7fa;
+  --app-bg-shine: rgb(255 255 255 / 90%);
+  --panel-bg: #ffffff;
+  --control-bg: #ffffff;
+  --control-strong: #eef3f8;
+  --control-hover: #e8eef5;
+  --control-hover-strong: #dfe7f0;
+  --control-active: #dceefd;
+  --border: #c9d3dd;
+  --text-main: #15202b;
+  --text-soft: #354552;
+  --text-muted: #647382;
+  --detail-text: #15202b;
+  --menu-shadow: rgb(33 45 57 / 18%);
+  --destructive-hover: #ffe9eb;
+  --debug-text: #354552;
+  --debug-bg: #e5ebf1;
+  --info-text: #116441;
+  --info-bg: #dff6eb;
+  --warn-text: #765214;
+  --warn-bg: #fff0ce;
+  --error-text: #9d2733;
+  --error-bg: #ffe1e5;
 }
 
 * {
@@ -17,8 +67,9 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 3%), transparent 190px),
-    #101214;
+    linear-gradient(180deg, var(--app-bg-shine), transparent 190px),
+    var(--app-bg);
+  color: var(--text-main);
 }
 
 button,
@@ -37,8 +88,9 @@ select {
 
 .topbar,
 .toolbar,
-.content {
-  width: min(1440px, 100%);
+.content,
+.splitContent {
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -58,14 +110,21 @@ h1 {
 
 p {
   margin: 4px 0 0;
-  color: #9aa7b3;
+  color: var(--text-muted);
+}
+
+.topbarActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .status {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #c4ccd4;
+  color: var(--text-soft);
   font-size: 14px;
   min-width: 148px;
   justify-content: flex-end;
@@ -86,66 +145,125 @@ p {
 }
 
 .toolbar {
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(292px, auto) 92px 92px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.toolbar input,
-.toolbar select,
-.toolbar > button {
+.searchInput {
+  flex: 1 1 300px;
+  min-width: 240px;
+}
+
+.searchInput .MuiOutlinedInput-root,
+.themeToggles .MuiToggleButton-root,
+.modeToggles .MuiToggleButton-root,
+.layoutToggles .MuiToggleButton-root {
   height: 38px;
-  border: 1px solid #30363d;
-  border-radius: 6px;
-  background: #181b1f;
-  color: #eef2f6;
-  padding: 0 12px;
+  border-color: var(--border);
+  background: var(--control-bg);
+  color: var(--text-soft);
+  font-size: 13px;
 }
 
-.toolbar > button {
-  cursor: pointer;
-  background: #242a31;
+.themeToggles .MuiToggleButton-root {
+  min-width: 34px;
+  padding: 0 7px;
 }
 
-.toolbar input:focus,
-.toolbar select:focus,
-.toolbar > button:focus-visible {
-  border-color: #51a7d9;
-  outline: 2px solid rgb(81 167 217 / 24%);
-  outline-offset: 1px;
+.searchInput .MuiInputBase-input {
+  color: var(--text-main);
 }
 
-.toolbar > button:hover {
-  background: #2c343d;
+.searchInput .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline,
+.searchInput .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--border-focus);
 }
 
-.levelToggles {
-  min-width: 292px;
+.searchInput .MuiInputBase-input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.modeToggles .MuiToggleButton-root {
+  min-width: 92px;
+}
+
+.layoutToggles .MuiToggleButton-root {
+  min-width: 96px;
+}
+
+.themeToggles .MuiToggleButton-root.Mui-selected,
+.modeToggles .MuiToggleButton-root.Mui-selected,
+.layoutToggles .MuiToggleButton-root.Mui-selected {
+  background: var(--control-active);
+  color: var(--text-main);
+}
+
+.themeToggles .MuiToggleButton-root:hover,
+.modeToggles .MuiToggleButton-root:hover,
+.layoutToggles .MuiToggleButton-root:hover {
+  background: var(--control-hover-strong);
+}
+
+.paneControls {
+  flex: 0 1 280px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rangeControl {
+  min-width: 260px;
   height: 38px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: 46px minmax(112px, 1fr) 58px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--control-bg);
+  color: var(--text-soft);
+  padding: 0 10px;
+}
+
+.rangeControl span,
+.rangeControl output {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.rangeControl output {
+  color: var(--text-main);
+  text-align: right;
+}
+
+.rangeControl .MuiSlider-root {
+  color: var(--border-focus);
 }
 
 .levelToggle {
-  height: 38px;
-  border: 1px solid #30363d;
+  height: 22px;
+  border: 1px solid var(--border);
   border-radius: 6px;
   cursor: pointer;
   font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 700;
   opacity: 0.36;
-  padding: 0 8px;
+  padding: 0 1px;
 }
 
+.levelToggle.Mui-selected,
 .levelToggle[aria-pressed="true"] {
   border-color: currentColor;
   opacity: 1;
 }
 
 .levelToggle:focus-visible {
-  border-color: #51a7d9;
+  border-color: var(--border-focus);
   outline: 2px solid rgb(81 167 217 / 24%);
   outline-offset: 1px;
 }
@@ -155,7 +273,7 @@ p {
 }
 
 .sourceToggles {
-  grid-column: 1 / -1;
+  flex: 1 0 100%;
   min-height: 34px;
   display: flex;
   flex-wrap: wrap;
@@ -166,10 +284,9 @@ p {
   max-width: 240px;
   min-width: 86px;
   height: 34px;
-  border: 1px solid #30363d;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #181b1f;
-  color: #9aa7b3;
+  color: var(--text-soft);
   cursor: pointer;
   overflow: hidden;
   padding: 0 10px;
@@ -177,20 +294,29 @@ p {
   white-space: nowrap;
 }
 
+.sourceToggle.MuiButton-contained {
+  border-color: var(--border-focus);
+  background: var(--control-active);
+  color: var(--text-main);
+}
+
+.sourceToggle.MuiButton-outlined {
+  background: var(--control-bg);
+  color: var(--text-muted);
+}
+
 .sourceToggle[aria-pressed="true"] {
-  border-color: #51a7d9;
-  background: #202832;
-  color: #eef2f6;
+  border-color: var(--border-focus);
 }
 
 .sourceToggle:focus-visible {
-  border-color: #51a7d9;
+  border-color: var(--border-focus);
   outline: 2px solid rgb(81 167 217 / 24%);
   outline-offset: 1px;
 }
 
 .sourceToggle:hover {
-  background: #222932;
+  background: var(--control-hover);
 }
 
 .content {
@@ -201,87 +327,385 @@ p {
   gap: 14px;
 }
 
-.logList,
-.detail {
+.splitContent {
+  flex: 1;
   min-height: 0;
-  border: 1px solid #30363d;
-  background: #15181c;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px;
+}
+
+.logList,
+.detail,
+.mergedPane,
+.sourcePane {
+  min-height: 0;
+  border: 1px solid var(--border);
+  background: var(--panel-bg);
   border-radius: 8px;
 }
 
+.mergedPane {
+  height: var(--merged-pane-height);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .logList {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 6px;
 }
 
-.logRow {
-  width: 100%;
-  min-height: 42px;
+.mergedPane .logList {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.sourcePaneArea {
+  --source-pane-area-height: 340px;
+  --source-pane-count: 1;
+  --source-pane-tile-row-height: 340px;
+  --source-pane-width: 380px;
+
+  height: var(--source-pane-area-height);
+  min-height: 0;
+  overflow: auto;
+}
+
+.sourcePaneArea.tiled {
   display: grid;
-  grid-template-columns: 92px 70px 190px minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--source-pane-width), 100%), 1fr));
+  grid-auto-rows: var(--source-pane-tile-row-height);
+  align-content: start;
+  justify-content: stretch;
+  gap: 12px;
+}
+
+.sourcePaneArea.vertical {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(var(--source-pane-count), minmax(0, 1fr));
+  align-content: stretch;
+  gap: 12px;
+}
+
+.sourcePaneArea.horizontal {
+  display: grid;
+  grid-template-columns: repeat(var(--source-pane-count), minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  align-content: stretch;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.sourcePane {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sourcePaneHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #eef2f6;
-  text-align: left;
-  cursor: pointer;
-  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
 }
 
-.logRow:hover,
-.logRow.selected {
-  background: #222932;
+.sourcePaneTitle {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.time,
-.source {
-  color: #9aa7b3;
-  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  font-size: 13px;
-}
-
-.message {
+.sourcePaneTitle strong {
+  display: inline-block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.level {
-  width: 56px;
-  display: inline-flex;
-  justify-content: center;
-  border-radius: 5px;
-  padding: 4px 6px;
+.sourcePaneHeader span {
+  color: var(--text-muted);
   font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
   font-size: 12px;
+}
+
+.sourcePaneActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.paneMenuButton {
+  width: 24px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--control-strong);
+  color: var(--text-soft) !important;
+  cursor: pointer;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+}
+
+.paneMenuButton.MuiIconButton-root {
+  background: var(--control-strong) !important;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-soft) !important;
+  padding: 0;
+}
+
+.paneMenuButton .MuiSvgIcon-root {
+  color: inherit;
+  font-size: 16px;
+}
+
+.paneMenuButton:hover,
+.paneMenuButton[aria-expanded="true"] {
+  background: var(--control-hover-strong);
+  color: var(--text-main) !important;
+}
+
+.paneMenuButton.MuiIconButton-root:hover,
+.paneMenuButton.MuiIconButton-root[aria-expanded="true"] {
+  background: var(--control-hover-strong) !important;
+}
+
+.paneMenuButton:focus-visible,
+.paneMenuItem:focus-visible {
+  border-color: var(--border-focus);
+  outline: 2px solid rgb(81 167 217 / 24%);
+  outline-offset: 1px;
+}
+
+.paneMenu .MuiPaper-root {
+  min-width: 172px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--control-bg);
+  color: var(--text-soft);
+  box-shadow: 0 14px 32px var(--menu-shadow);
+}
+
+.paneMenuItem {
+  min-height: 26px;
+  color: var(--text-soft) !important;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.1;
+  gap: 10px;
+}
+
+.paneMenuItem:hover {
+  background: var(--control-hover);
+  color: var(--text-main) !important;
+}
+
+.paneMenuItem .MuiListItemIcon-root {
+  min-width: 28px;
+  color: inherit;
+}
+
+.paneMenuItem .MuiListItemText-primary {
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+}
+
+.paneMenuItem .MuiSwitch-root {
+  margin-left: 10px;
+}
+
+.paneMenuItem.destructive {
+  color: var(--error-text) !important;
+}
+
+.paneMenuItem.destructive:hover {
+  background: var(--destructive-hover);
+}
+
+.paneLevels {
+  display: inline-grid;
+  grid-template-columns: repeat(4, 28px);
+  gap: 4px;
+  width: max-content;
+  border: 0;
+}
+
+.paneLevels .levelToggle {
+  width: 28px;
+  min-width: 28px;
+  height: 24px;
+  font-size: 10px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px !important;
+  margin: 0;
+}
+
+.paneLevels .levelToggle.MuiButtonBase-root {
+  color: currentColor;
+}
+
+.paneLevels .levelToggle.debug,
+.paneLevels .levelToggle.debug.Mui-selected,
+.paneLevels .levelToggle.debug:hover {
+  background: var(--debug-bg) !important;
+  color: var(--debug-text) !important;
+}
+
+.paneLevels .levelToggle.info,
+.paneLevels .levelToggle.info.Mui-selected,
+.paneLevels .levelToggle.info:hover {
+  background: var(--info-bg) !important;
+  color: var(--info-text) !important;
+}
+
+.paneLevels .levelToggle.warn,
+.paneLevels .levelToggle.warn.Mui-selected,
+.paneLevels .levelToggle.warn:hover {
+  background: var(--warn-bg) !important;
+  color: var(--warn-text) !important;
+}
+
+.paneLevels .levelToggle.error,
+.paneLevels .levelToggle.error.Mui-selected,
+.paneLevels .levelToggle.error:hover {
+  background: var(--error-bg) !important;
+  color: var(--error-text) !important;
+}
+
+.paneLevels .levelToggle.Mui-selected {
+  border-color: currentColor !important;
+}
+
+.paneLogList {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px;
+}
+
+.logRow {
+  width: 100%;
+  min-height: 20px;
+  display: grid;
+  grid-template-columns: 90px 62px 180px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  padding: 0 7px;
+}
+
+.paneLogRow {
+  width: 100%;
+  min-height: 20px;
+  display: grid;
+  grid-template-columns: 90px 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  padding: 0 6px;
+}
+
+.logRow:hover,
+.logRow.selected,
+.paneLogRow:hover,
+.paneLogRow.selected {
+  background: #222932;
+  background: var(--control-hover);
+}
+
+.time,
+.source {
+  color: var(--text-muted);
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.message {
+  font-size: 14px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inlineAttrs {
+  color: var(--text-muted);
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.level {
+  width: 52px;
+  display: inline-flex;
+  justify-content: center;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.15;
   font-weight: 700;
 }
 
 .debug {
-  color: #aeb8c2;
-  background: #2b3138;
+  color: var(--debug-text);
+  background: var(--debug-bg);
 }
 
 .info {
-  color: #8ce8ba;
-  background: #12352a;
+  color: var(--info-text);
+  background: var(--info-bg);
 }
 
 .warn {
-  color: #ffd47f;
-  background: #3b2d12;
+  color: var(--warn-text);
+  background: var(--warn-bg);
 }
 
 .error {
-  color: #ffa0a0;
-  background: #431f25;
+  color: var(--error-text);
+  background: var(--error-bg);
 }
 
 .detail {
   padding: 16px;
   overflow: auto;
+}
+
+.content > .detail {
+  height: var(--merged-pane-height);
 }
 
 .detailHeader {
@@ -303,7 +727,7 @@ dl div {
 }
 
 dt {
-  color: #9aa7b3;
+  color: var(--text-muted);
   font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
   font-size: 12px;
 }
@@ -311,30 +735,45 @@ dt {
 dd {
   margin: 0;
   overflow-wrap: anywhere;
-  color: #f4f7fa;
+  color: var(--detail-text);
 }
 
 .emptyState {
   min-height: 128px;
   display: grid;
   place-items: center;
-  color: #9aa7b3;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
 @media (max-width: 900px) {
-  .toolbar,
-  .content {
+  .content,
+  .splitContent {
     grid-template-columns: 1fr;
   }
 
+  .searchInput {
+    flex-basis: 100%;
+  }
+
   .logRow {
-    grid-template-columns: 78px 62px minmax(0, 1fr);
+    grid-template-columns: 78px 56px minmax(0, 1fr);
   }
 
   .source {
     display: none;
   }
+
+  .sourcePaneHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .sourcePaneActions {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
 }
 
 @media (max-width: 560px) {
@@ -352,7 +791,15 @@ dd {
   }
 
   .logRow {
-    gap: 8px;
-    padding: 0 8px;
+    gap: 7px;
+    padding: 0 6px;
+  }
+
+  .rangeControl {
+    flex: 1 1 100%;
+  }
+
+  .paneLogRow {
+    grid-template-columns: 78px 54px minmax(0, 1fr);
   }
 }

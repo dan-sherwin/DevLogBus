@@ -14,6 +14,9 @@ import (
 
 // Options configures a DevLogBus slog handler.
 type Options struct {
+	Endpoint       string
+	Network        string
+	Address        string
 	SocketPath     string
 	Source         string
 	Level          slog.Leveler
@@ -52,8 +55,13 @@ func New(options Options) slog.Handler {
 	}
 
 	s := &sink{
-		source:         options.Source,
-		client:         client.New(options.SocketPath),
+		source: options.Source,
+		client: client.NewWithOptions(client.Options{
+			Endpoint:   options.Endpoint,
+			Network:    options.Network,
+			Address:    options.Address,
+			SocketPath: options.SocketPath,
+		}),
 		queue:          make(chan protocol.Record, options.QueueSize),
 		publishTimeout: options.PublishTimeout,
 	}
@@ -113,9 +121,26 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 }
 
 func (s *sink) run() {
+	var publisher *client.Publisher
+	defer func() {
+		if publisher != nil {
+			_ = publisher.Close()
+		}
+	}()
 	for record := range s.queue {
 		ctx, cancel := context.WithTimeout(context.Background(), s.publishTimeout)
-		_ = s.client.Publish(ctx, record)
+		if publisher == nil {
+			next, err := s.client.OpenPublisher(ctx)
+			if err != nil {
+				cancel()
+				continue
+			}
+			publisher = next
+		}
+		if err := publisher.Publish(ctx, record); err != nil {
+			_ = publisher.Close()
+			publisher = nil
+		}
 		cancel()
 	}
 }

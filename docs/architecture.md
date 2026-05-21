@@ -3,7 +3,8 @@
 DevLogBus has three cooperating pieces:
 
 - Producers publish structured records.
-- `devlogbusd` accepts records over a local Unix socket and keeps an in-memory ring buffer.
+- `devlogbusd` accepts records over a configured broker endpoint, can optionally listen on an extra TCP address, and keeps an in-memory ring buffer.
+- `devlogbus-journal-bridge` can run on a Linux host and forward systemd journal records into a broker for active troubleshooting.
 - Clients subscribe to replay and live records with lightweight filters.
 - The browser UI is built from `internal/devlogbusd/ui`, embedded into `devlogbusd`, and served by the daemon's HTTP listener.
 
@@ -17,9 +18,12 @@ DevLogBus has three cooperating pieces:
 
 This is a local developer workflow tool. Keep the broker boring and reliable, and let clients decide how fancy the presentation should be.
 
-## Initial Transport
+## Transports
 
-The first transport is newline-delimited JSON over a Unix domain socket. The protocol is intentionally plain enough to inspect with normal tools and stable enough for Go handlers, CLIs, TUIs, and browser bridges to share.
+The default transport is newline-delimited JSON over a Unix domain socket. The
+configured broker endpoint can also be a TCP address such as `0.0.0.0:7422`,
+and the same publish, subscribe, and expunge protocol can run on an additional
+TCP listener for live troubleshooting across machines.
 
 ## Go App Shape
 
@@ -27,6 +31,7 @@ The project is one Go module with multiple binaries. That keeps the public impor
 
 - `cmd/devlogbusd` is intentionally tiny and delegates to `internal/devlogbusd/app`.
 - `cmd/devlogbus` is intentionally tiny and delegates to `internal/devlogbus/app`.
+- `cmd/devlogbus-journal-bridge` is intentionally tiny and delegates to `internal/journalbridge/app`.
 - `internal/devlogbusd/ui` owns the React live viewer and its checked-in production bundle for Go embedding.
 - `pkg/protocol`, `pkg/client`, and `pkg/sloghandler` remain public packages under the root module.
 
