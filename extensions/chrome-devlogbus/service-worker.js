@@ -14,6 +14,7 @@ const FLUSH_BATCH_SIZE = 100;
 
 const attachedTabs = new Map();
 const detachReasonOverrides = new Map();
+const publishedDetachRecords = new Map();
 const publishQueue = [];
 let flushTimer = null;
 let cachedOptions = null;
@@ -100,10 +101,13 @@ async function detachActiveTab() {
   if (tab.id == null) {
     throw new Error("active tab has no id");
   }
+  const tabState = attachedTabs.get(tab.id) ?? makeTabState(tab, await loadOptions());
   if (await isDebuggerAttached(tab.id)) {
     detachReasonOverrides.set(tab.id, "popup_detach");
     try {
       await chrome.debugger.detach({ tabId: tab.id });
+      await publishDetachRecord(tab.id, tabState, "popup_detach");
+      detachReasonOverrides.delete(tab.id);
     } catch (error) {
       detachReasonOverrides.delete(tab.id);
       throw error;
@@ -195,8 +199,7 @@ async function handleDebuggerDetach(source, reason) {
   detachReasonOverrides.delete(tabId);
   attachedTabs.delete(tabId);
   await setTabBadge(tabId, "");
-  enqueueRecord(await makeDetachRecord(tabId, tabState, detachReason));
-  void flushQueue();
+  await publishDetachRecord(tabId, tabState, detachReason);
 }
 
 async function stateForTab(tabId, options) {
@@ -429,6 +432,22 @@ async function makeDetachRecord(tabId, tabState, reason) {
       action: "reattach DevLogBus Browser Tap to resume browser capture",
     },
   };
+}
+
+async function publishDetachRecord(tabId, tabState, reason) {
+  const now = Date.now();
+  const lastPublished = publishedDetachRecords.get(tabId) ?? 0;
+  if (now - lastPublished < 1000) {
+    return;
+  }
+  publishedDetachRecords.set(tabId, now);
+  setTimeout(() => {
+    if (publishedDetachRecords.get(tabId) === now) {
+      publishedDetachRecords.delete(tabId);
+    }
+  }, 1000);
+  enqueueRecord(await makeDetachRecord(tabId, tabState, reason));
+  void flushQueue();
 }
 
 function enqueueRecord(record) {
