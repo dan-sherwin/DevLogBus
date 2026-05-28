@@ -1,0 +1,46 @@
+# DevLogBus Browser Tap
+
+Chrome Manifest V3 extension that attaches Chrome's debugger transport to the active tab and publishes browser-side debug events to `devlogbusd`.
+
+The extension icons live in `icons/` and are sized for Chrome's toolbar,
+extension management page, and install surfaces.
+
+## What It Captures
+
+- console calls from the tab
+- runtime exceptions
+- browser log entries
+- network requests, responses, and failures
+
+Records are posted to the daemon's HTTP API:
+
+```text
+POST http://127.0.0.1:7423/api/records
+```
+
+## Load Locally
+
+1. Start `devlogbusd` with the HTTP listener enabled.
+2. Open `chrome://extensions`.
+3. Enable Developer mode.
+4. Choose Load unpacked.
+5. Select this directory.
+6. Open a page, click the DevLogBus extension, and Attach.
+
+The default endpoint is `http://127.0.0.1:7423`. Use the popup to point at another daemon HTTP address or to override the emitted source name.
+
+## Source Names
+
+Without an override, records use:
+
+```text
+chrome:<host>
+```
+
+For example:
+
+```text
+chrome:localhost:5173
+```
+
+Use the popup source override when a shorter app name is more useful, such as `chrome:tenant-ui`.

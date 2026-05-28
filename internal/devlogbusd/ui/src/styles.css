@@ -101,6 +101,23 @@ select {
   gap: 16px;
 }
 
+.brandLockup {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brandMark {
+  width: 128px;
+  height: 56px;
+  flex: 0 0 auto;
+  border: 1px solid rgb(150 224 166 / 42%);
+  border-radius: 4px;
+  box-shadow: 0 0 16px rgb(80 230 130 / 8%);
+  object-fit: cover;
+}
+
 h1 {
   margin: 0;
   font-size: 24px;
@@ -784,6 +801,15 @@ dd {
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .brandLockup {
+    gap: 10px;
+  }
+
+  .brandMark {
+    width: 96px;
+    height: 42px;
   }
 
   .status {

@@ -21,6 +21,9 @@ internal/
   completions/       shared shell-completion installer helpers
   recordfmt/         shared human log formatting
 
+extensions/
+  chrome-devlogbus/  Chrome extension that publishes browser debug events
+
 pkg/
   protocol/          wire messages and filtering helpers
   client/            Go client for the broker
@@ -90,6 +93,18 @@ Run the live browser viewer directly during UI development:
 ```bash
 VITE_DEVLOGBUS_API_URL=http://127.0.0.1:7423 npm --prefix internal/devlogbusd/ui run dev
 ```
+
+Publish browser records over HTTP:
+
+```bash
+curl -X POST http://127.0.0.1:7423/api/records \
+  -H 'Content-Type: application/json' \
+  -d '{"level":"info","source":"chrome:demo","message":"button clicked"}'
+```
+
+Load the Chrome browser tap from `extensions/chrome-devlogbus` to publish
+console, runtime, browser log, and network events from the active tab into the
+same DevLogBus stream as backend service records.
 
 ## Go slog Handler
 

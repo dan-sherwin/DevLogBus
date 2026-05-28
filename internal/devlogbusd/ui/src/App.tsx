@@ -641,11 +641,14 @@ export default function App() {
       <CssBaseline />
       <main className="shell" data-theme={resolvedThemeMode}>
         <header className="topbar">
-          <div>
-            <h1>DevLogBus</h1>
-            <p>
-              {displayedCount} shown / {records.length} buffered
-            </p>
+          <div className="brandLockup">
+            <img className="brandMark" src="/devlogbus-brand.png" alt="" aria-hidden="true" />
+            <div>
+              <h1>DevLogBus</h1>
+              <p>
+                {displayedCount} shown / {records.length} buffered
+              </p>
+            </div>
           </div>
           <div className="topbarActions">
             <ThemeModeControl onChange={setThemePreference} preference={themePreference} />

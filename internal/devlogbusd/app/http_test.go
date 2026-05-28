@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"io/fs"
@@ -42,6 +43,86 @@ func TestHTTPRecordsUsesReplayFilters(t *testing.T) {
 	}
 	if records[0].Source != "billing" || records[0].Level != "WARN" {
 		t.Fatalf("record = %#v, want billing WARN", records[0])
+	}
+}
+
+func TestHTTPRecordsPublishesSingleRecord(t *testing.T) {
+	b := &broker{
+		maxRecords:  10,
+		subscribers: map[int]subscriber{},
+	}
+	body := bytes.NewBufferString(`{"time":"2026-05-27T12:00:00Z","level":"warn","source":"chrome:tenant-ui","message":"POST /api/payment-methods -> 400","attrs":{"status":400}}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/records", body)
+	rr := httptest.NewRecorder()
+
+	b.handleHTTPRecords(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	var response map[string]int
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response["published"] != 1 {
+		t.Fatalf("published = %d, want 1", response["published"])
+	}
+
+	records := b.replay(protocol.Subscribe{})
+	if len(records) != 1 {
+		t.Fatalf("records len = %d, want 1", len(records))
+	}
+	if records[0].Source != "chrome:tenant-ui" || records[0].Level != "WARN" {
+		t.Fatalf("record = %#v, want chrome:tenant-ui WARN", records[0])
+	}
+}
+
+func TestHTTPRecordsPublishesBatch(t *testing.T) {
+	b := &broker{
+		maxRecords:  10,
+		subscribers: map[int]subscriber{},
+	}
+	body := bytes.NewBufferString(`{"records":[{"level":"info","source":"chrome:tenant-ui","message":"GET /api/session requested"},{"level":"error","source":"chrome:tenant-ui","message":"GET /api/session failed"}]}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/records", body)
+	rr := httptest.NewRecorder()
+
+	b.handleHTTPRecords(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	var response map[string]int
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response["published"] != 2 {
+		t.Fatalf("published = %d, want 2", response["published"])
+	}
+
+	records := b.replay(protocol.Subscribe{})
+	if len(records) != 2 {
+		t.Fatalf("records len = %d, want 2", len(records))
+	}
+	if records[0].Time.IsZero() || records[1].Time.IsZero() {
+		t.Fatalf("published records should get daemon timestamps: %#v", records)
+	}
+}
+
+func TestHTTPRecordsRejectsInvalidRecord(t *testing.T) {
+	b := &broker{
+		maxRecords:  10,
+		subscribers: map[int]subscriber{},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/records", strings.NewReader(`{"level":"info","message":"missing source"}`))
+	rr := httptest.NewRecorder()
+
+	b.handleHTTPRecords(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusBadRequest)
+	}
+	if records := b.replay(protocol.Subscribe{}); len(records) != 0 {
+		t.Fatalf("records len = %d, want 0", len(records))
 	}
 }
 

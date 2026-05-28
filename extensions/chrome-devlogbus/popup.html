@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="icons/icon-32.png" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>DevLogBus Browser Tap</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>DevLogBus</h1>
+        <span id="statePill">Detached</span>
+      </header>
+
+      <section class="tab">
+        <div id="tabTitle">No active tab</div>
+        <div id="tabUrl"></div>
+      </section>
+
+      <label>
+        Endpoint
+        <input id="endpoint" type="url" spellcheck="false" />
+      </label>
+
+      <label>
+        Source override
+        <input id="sourceOverride" type="text" spellcheck="false" placeholder="chrome:tenant-ui" />
+      </label>
+
+      <fieldset>
+        <legend>Capture</legend>
+        <label class="check"><input id="captureConsole" type="checkbox" /> Console</label>
+        <label class="check"><input id="captureRuntime" type="checkbox" /> Runtime errors</label>
+        <label class="check"><input id="captureLog" type="checkbox" /> Browser log</label>
+        <label class="check"><input id="captureNetwork" type="checkbox" /> Network</label>
+      </fieldset>
+
+      <div class="actions">
+        <button id="attach" type="button">Attach</button>
+        <button id="detach" type="button">Detach</button>
+      </div>
+
+      <div id="message" role="status"></div>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "DevLogBus Browser Tap",
+  "description": "Publishes Chrome tab debugging events to a local DevLogBus daemon.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "125",
+  "permissions": ["activeTab", "debugger", "storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "DevLogBus Browser Tap",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  }
+}

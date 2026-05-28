@@ -31,7 +31,7 @@ func startHTTPServer(ctx context.Context, address string, b *broker) (func(), er
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", withCORS(handleHTTPHealth))
-	mux.HandleFunc("/api/records", withCORS(b.handleHTTPRecords))
+	mux.HandleFunc("/api/records", withCORSMethods(b.handleHTTPRecords, http.MethodGet, http.MethodPost))
 	mux.HandleFunc("/api/records/expunge", withCORSMethods(b.handleHTTPExpungeRecords, http.MethodDelete))
 	mux.HandleFunc("/api/stream", withCORS(b.handleHTTPStream))
 	uiFS, err := devlogbusui.DistFS()
@@ -131,7 +131,71 @@ func uiFileExists(uiFS fs.FS, name string) bool {
 }
 
 func (b *broker) handleHTTPRecords(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		records, err := decodeHTTPPublishRecords(w, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		for _, record := range records {
+			b.publish(record)
+		}
+		writeJSON(w, http.StatusOK, map[string]int{"published": len(records)})
+		return
+	}
 	writeJSON(w, http.StatusOK, b.replay(subscribeFromRequest(r)))
+}
+
+func decodeHTTPPublishRecords(w http.ResponseWriter, r *http.Request) ([]protocol.Record, error) {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+
+	var payload json.RawMessage
+	if err := decoder.Decode(&payload); err != nil {
+		return nil, fmt.Errorf("decode publish records: %w", err)
+	}
+	if len(strings.TrimSpace(string(payload))) == 0 {
+		return nil, fmt.Errorf("publish records payload is required")
+	}
+
+	var records []protocol.Record
+	switch strings.TrimSpace(string(payload))[0] {
+	case '[':
+		if err := json.Unmarshal(payload, &records); err != nil {
+			return nil, fmt.Errorf("decode records array: %w", err)
+		}
+	case '{':
+		var object map[string]json.RawMessage
+		if err := json.Unmarshal(payload, &object); err != nil {
+			return nil, fmt.Errorf("decode record object: %w", err)
+		}
+		if rawRecords, ok := object["records"]; ok {
+			if err := json.Unmarshal(rawRecords, &records); err != nil {
+				return nil, fmt.Errorf("decode records: %w", err)
+			}
+			break
+		}
+		var record protocol.Record
+		if err := json.Unmarshal(payload, &record); err != nil {
+			return nil, fmt.Errorf("decode record: %w", err)
+		}
+		records = []protocol.Record{record}
+	default:
+		return nil, fmt.Errorf("publish records payload must be an object or array")
+	}
+
+	if len(records) == 0 {
+		return nil, fmt.Errorf("at least one record is required")
+	}
+	if len(records) > 500 {
+		return nil, fmt.Errorf("too many records: %d", len(records))
+	}
+	for i := range records {
+		records[i].Level = protocol.NormalizeLevel(records[i].Level)
+		if err := records[i].Validate(); err != nil {
+			return nil, fmt.Errorf("record %d: %w", i, err)
+		}
+	}
+	return records, nil
 }
 
 func (b *broker) handleHTTPExpungeRecords(w http.ResponseWriter, r *http.Request) {
