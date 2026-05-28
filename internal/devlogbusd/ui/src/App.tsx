@@ -40,6 +40,34 @@ type PaneArea = {
   width: number;
 };
 
+type SourceGroup = {
+  childSources: string[];
+  group: string;
+  records: LogRecord[];
+};
+
+type SourcePaneModel = {
+  childPanes: ChildSourcePane[];
+  childSources: string[];
+  group: string;
+  isGroup: boolean;
+  layout: SourceLayout;
+  levels: LogLevel[];
+  records: LogRecord[];
+  scopeKey: string;
+  total: number;
+  viewMode: ViewMode;
+  visibleRecords: LogRecord[];
+};
+
+type ChildSourcePane = {
+  levels: LogLevel[];
+  records: LogRecord[];
+  scopeKey: string;
+  source: string;
+  total: number;
+};
+
 type LogRecord = {
   id: string;
   time: string;
@@ -185,6 +213,71 @@ function recordMatchesSearch(record: LogRecord, query: string): boolean {
   return query === "" || searchableText(record).includes(query);
 }
 
+function attrString(attrs: Record<string, unknown> | undefined, key: string): string {
+  const value = attrs?.[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function defaultChromeSource(rawURL: string, tabID: unknown): string {
+  try {
+    const url = new URL(rawURL);
+    return `chrome:${url.host}`;
+  } catch {
+    return `chrome:tab-${typeof tabID === "number" || typeof tabID === "string" ? tabID : "unknown"}`;
+  }
+}
+
+function recordSourceGroup(record: LogRecord): string {
+  const explicit = attrString(record.attrs, "sourceGroup") || attrString(record.attrs, "source_group");
+  if (explicit !== "") {
+    return explicit;
+  }
+  if (record.source.startsWith("chrome:")) {
+    const tabURL = attrString(record.attrs, "tabURL");
+    if (tabURL !== "") {
+      return defaultChromeSource(tabURL, record.attrs?.tabId);
+    }
+  }
+  return record.source;
+}
+
+function groupKey(group: string): string {
+  return `group:${group}`;
+}
+
+function sourceKey(source: string): string {
+  return `source:${source}`;
+}
+
+function buildSourceGroups(records: LogRecord[]): SourceGroup[] {
+  const groups = new Map<string, SourceGroup>();
+  for (const record of records) {
+    const group = recordSourceGroup(record);
+    const entry = groups.get(group) ?? {
+      childSources: [],
+      group,
+      records: [],
+    };
+    entry.records.push(record);
+    if (record.source !== "" && !entry.childSources.includes(record.source)) {
+      entry.childSources.push(record.source);
+    }
+    groups.set(group, entry);
+  }
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      childSources: group.childSources.sort(),
+      records: group.records.sort(compareRecords),
+    }))
+    .sort((a, b) => a.group.localeCompare(b.group));
+}
+
+function compareRecords(a: LogRecord, b: LogRecord): number {
+  return new Date(a.time).valueOf() - new Date(b.time).valueOf();
+}
+
 function sourceLevels(
   perSourceLevels: Partial<Record<string, LogLevel[]>>,
   source: string,
@@ -301,6 +394,8 @@ export default function App() {
   const [mergedLineDetails, setMergedLineDetails] = useState(false);
   const [mergedPaneHeight, setMergedPaneHeight] = useState(browserHeight);
   const [excludedSources, setExcludedSources] = useState<string[]>([]);
+  const [groupViewModes, setGroupViewModes] = useState<Partial<Record<string, ViewMode>>>({});
+  const [groupLayouts, setGroupLayouts] = useState<Partial<Record<string, SourceLayout>>>({});
   const [selectedID, setSelectedID] = useState("");
   const pausedRef = useRef(paused);
   const pausedSourcesRef = useRef(pausedSources);
@@ -384,7 +479,11 @@ export default function App() {
         if (viewModeRef.current === "merged" && pausedRef.current) {
           return;
         }
-        if (sourcePaused(pausedSourcesRef.current, record.source)) {
+        const group = recordSourceGroup(record);
+        if (
+          sourcePaused(pausedSourcesRef.current, groupKey(group)) ||
+          sourcePaused(pausedSourcesRef.current, sourceKey(record.source))
+        ) {
           return;
         }
         setKnownSources((current) => {
@@ -427,14 +526,11 @@ export default function App() {
     return () => window.removeEventListener("resize", syncMergedPaneHeight);
   }, [records.length, viewMode]);
 
-  const sources = useMemo(() => {
-    return Array.from(
-      new Set([...knownSources, ...records.map((record) => record.source)].filter(Boolean)),
-    ).sort();
-  }, [knownSources, records]);
-  const selectedSources = useMemo(
-    () => sources.filter((source) => !excludedSources.includes(source)),
-    [excludedSources, sources],
+  const sourceGroups = useMemo(() => buildSourceGroups(records), [records]);
+  const sources = useMemo(() => sourceGroups.map((group) => group.group), [sourceGroups]);
+  const selectedGroups = useMemo(
+    () => sourceGroups.filter((group) => !excludedSources.includes(group.group)),
+    [excludedSources, sourceGroups],
   );
 
   const mergedRecords = useMemo(() => {
@@ -444,46 +540,77 @@ export default function App() {
       if (!selectedLevels.includes(normalized)) {
         return false;
       }
-      if (excludedSources.includes(record.source)) {
+      if (excludedSources.includes(recordSourceGroup(record))) {
         return false;
       }
       if (!recordMatchesSearch(record, query)) {
         return false;
       }
       return true;
-    });
+    }).sort(compareRecords);
   }, [excludedSources, records, search, selectedLevels]);
 
   const sourcePanes = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return selectedSources.map((source) => {
-      const paneLevels = sourceLevels(perSourceLevels, source);
-      const sourceRecords = records.filter((record) => record.source === source);
+    return selectedGroups.map((group): SourcePaneModel => {
+      const isGroup = group.childSources.length > 1;
+      const singleSource = group.childSources[0] ?? group.group;
+      const scope = isGroup ? groupKey(group.group) : sourceKey(singleSource);
+      const paneLevels = sourceLevels(perSourceLevels, scope);
+      const visibleRecords = group.records.filter(
+        (record) =>
+          paneLevels.includes(normalizeLevel(record.level)) && recordMatchesSearch(record, query),
+      );
+      const childPanes = group.childSources.map((source): ChildSourcePane => {
+        const childScope = sourceKey(source);
+        const childLevels = sourceLevels(perSourceLevels, childScope);
+        const sourceRecords = group.records.filter((record) => record.source === source);
+        return {
+          levels: childLevels,
+          records: sourceRecords.filter(
+            (record) =>
+              childLevels.includes(normalizeLevel(record.level)) &&
+              recordMatchesSearch(record, query),
+          ),
+          scopeKey: childScope,
+          source,
+          total: sourceRecords.length,
+        };
+      });
       return {
+        childPanes,
+        childSources: group.childSources,
+        group: group.group,
+        isGroup,
+        layout: groupLayouts[group.group] ?? "tiled",
         levels: paneLevels,
-        records: sourceRecords.filter(
-          (record) =>
-            paneLevels.includes(normalizeLevel(record.level)) &&
-            recordMatchesSearch(record, query),
-        ),
-        source,
-        total: sourceRecords.length,
+        records: group.records,
+        scopeKey: scope,
+        total: group.records.length,
+        viewMode: groupViewModes[group.group] ?? "merged",
+        visibleRecords,
       };
     });
-  }, [perSourceLevels, records, search, selectedSources]);
+  }, [groupLayouts, groupViewModes, perSourceLevels, search, selectedGroups]);
 
   const sourceVisibleRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
     return records.filter((record) => {
-      if (!selectedSources.includes(record.source)) {
+      const group = recordSourceGroup(record);
+      if (excludedSources.includes(group)) {
         return false;
       }
-      if (!sourceLevels(perSourceLevels, record.source).includes(normalizeLevel(record.level))) {
+      const sourceGroup = sourceGroups.find((item) => item.group === group);
+      const isGroup = (sourceGroup?.childSources.length ?? 0) > 1;
+      const groupViewMode = groupViewModes[group] ?? "merged";
+      const scope =
+        isGroup && groupViewMode === "merged" ? groupKey(group) : sourceKey(record.source);
+      if (!sourceLevels(perSourceLevels, scope).includes(normalizeLevel(record.level))) {
         return false;
       }
       return recordMatchesSearch(record, query);
-    });
-  }, [perSourceLevels, records, search, selectedSources]);
+    }).sort(compareRecords);
+  }, [excludedSources, groupViewModes, perSourceLevels, records, search, sourceGroups]);
 
   const visibleRecords = viewMode === "merged" ? mergedRecords : sourceVisibleRecords;
   const displayedCount = visibleRecords.length;
@@ -494,6 +621,8 @@ export default function App() {
     setRecords([]);
     setKnownSources([]);
     setPausedSources({});
+    setGroupViewModes({});
+    setGroupLayouts({});
     setSelectedID("");
   };
 
@@ -501,11 +630,12 @@ export default function App() {
     setRecords((current) => current.filter((record) => record.source !== source));
     if (options?.forgetSource === true) {
       setKnownSources((current) => current.filter((item) => item !== source));
+      const scope = sourceKey(source);
       setExcludedSources((current) => current.filter((item) => item !== source));
-      setPerSourceLevels((current) => withoutSourceSetting(current, source));
-      setAutoScrollSources((current) => withoutSourceSetting(current, source));
-      setDetailSources((current) => withoutSourceSetting(current, source));
-      setPausedSources((current) => withoutSourceSetting(current, source));
+      setPerSourceLevels((current) => withoutSourceSetting(current, scope));
+      setAutoScrollSources((current) => withoutSourceSetting(current, scope));
+      setDetailSources((current) => withoutSourceSetting(current, scope));
+      setPausedSources((current) => withoutSourceSetting(current, scope));
     } else {
       setKnownSources((current) => {
         if (current.includes(source)) {
@@ -517,6 +647,24 @@ export default function App() {
     setSelectedID((currentID) => {
       const selectedRecord = records.find((record) => record.id === currentID);
       return selectedRecord?.source === source ? "" : currentID;
+    });
+  };
+
+  const clearGroupRecords = (group: string, options?: { forgetGroup?: boolean }) => {
+    setRecords((current) => current.filter((record) => recordSourceGroup(record) !== group));
+    if (options?.forgetGroup === true) {
+      const scope = groupKey(group);
+      setExcludedSources((current) => current.filter((item) => item !== group));
+      setGroupViewModes((current) => withoutSourceSetting(current, group));
+      setGroupLayouts((current) => withoutSourceSetting(current, group));
+      setPerSourceLevels((current) => withoutSourceSetting(current, scope));
+      setAutoScrollSources((current) => withoutSourceSetting(current, scope));
+      setDetailSources((current) => withoutSourceSetting(current, scope));
+      setPausedSources((current) => withoutSourceSetting(current, scope));
+    }
+    setSelectedID((currentID) => {
+      const selectedRecord = records.find((record) => record.id === currentID);
+      return selectedRecord != null && recordSourceGroup(selectedRecord) === group ? "" : currentID;
     });
   };
 
@@ -544,6 +692,30 @@ export default function App() {
     } catch (error) {
       console.error("Failed to expunge DevLogBus records", error);
       displayErrorMessage("Failed to expunge DevLogBus records");
+    }
+  };
+
+  const expungeGroupRecords = async (pane: SourcePaneModel) => {
+    try {
+      let expunged = 0;
+      for (const source of pane.childSources) {
+        const response = await fetch(
+          `${apiBase}/api/records/expunge?${new URLSearchParams({ source }).toString()}`,
+          {
+            method: "DELETE",
+          },
+        );
+        if (!response.ok) {
+          throw new Error(`expunge failed: ${response.status}`);
+        }
+        const result = (await response.json()) as { expunged?: number };
+        expunged += result.expunged ?? 0;
+      }
+      clearGroupRecords(pane.group, { forgetGroup: true });
+      displaySuccessMessage(`Expunged ${expunged} ${pane.group} records`);
+    } catch (error) {
+      console.error("Failed to expunge DevLogBus group records", error);
+      displayErrorMessage("Failed to expunge DevLogBus group records");
     }
   };
 
@@ -605,14 +777,25 @@ export default function App() {
     }
     const frame = window.requestAnimationFrame(() => {
       for (const pane of sourcePanes) {
-        if (!sourceAutoScroll(autoScrollSources, pane.source)) {
+        if (pane.isGroup && pane.viewMode === "source") {
+          for (const child of pane.childPanes) {
+            if (!sourceAutoScroll(autoScrollSources, child.scopeKey)) {
+              continue;
+            }
+            const list = paneLogListsRef.current[child.scopeKey];
+            if (list != null) {
+              list.scrollTop = list.scrollHeight;
+            }
+          }
           continue;
         }
-        const list = paneLogListsRef.current[pane.source];
-        if (list == null) {
+        if (!sourceAutoScroll(autoScrollSources, pane.scopeKey)) {
           continue;
         }
-        list.scrollTop = list.scrollHeight;
+        const list = paneLogListsRef.current[pane.scopeKey];
+        if (list != null) {
+          list.scrollTop = list.scrollHeight;
+        }
       }
     });
     return () => window.cancelAnimationFrame(frame);
@@ -814,76 +997,235 @@ export default function App() {
                 <div className="emptyState">Waiting for sources.</div>
               ) : (
                 sourcePanes.map((pane) => {
-                  const showLineDetails = sourceLineDetails(detailSources, pane.source);
-                  const isPaused = sourcePaused(pausedSources, pane.source);
+                  const showLineDetails = sourceLineDetails(detailSources, pane.scopeKey);
+                  const isPaused = sourcePaused(pausedSources, pane.scopeKey);
+                  const showRecordSource = pane.isGroup && pane.viewMode === "merged";
+                  const visibleCount =
+                    pane.isGroup && pane.viewMode === "source"
+                      ? pane.childPanes.reduce((total, child) => total + child.records.length, 0)
+                      : pane.visibleRecords.length;
                   return (
-                    <section className="sourcePane" key={pane.source}>
-                      <header className="sourcePaneHeader">
+                    <section
+                      className={`sourcePane ${pane.isGroup ? "groupPane" : ""}`}
+                      key={pane.group}
+                    >
+                      <header
+                        className={`sourcePaneHeader ${pane.isGroup ? "groupPaneHeader" : ""}`}
+                      >
                         <div className="sourcePaneTitle">
-                          <strong title={pane.source}>{pane.source}</strong>
+                          <strong title={pane.group}>{pane.group}</strong>
                           <span>
-                            {pane.records.length} / {pane.total}
+                            {visibleCount} / {pane.total}
                           </span>
+                          {pane.isGroup && (
+                            <span className="sourcePaneBadge">
+                              {pane.childSources.length} sources
+                            </span>
+                          )}
                         </div>
                         <div className="sourcePaneActions">
-                          <LevelButtons
-                            ariaLabel={`${pane.source} levels`}
-                            onToggle={(level) => togglePaneLevel(pane.source, level)}
-                            selected={pane.levels}
-                          />
+                          {pane.isGroup && (
+                            <ToggleButtonGroup
+                              aria-label={`${pane.group} grouping`}
+                              className="groupModeToggles"
+                              exclusive
+                              onChange={(_, value: ViewMode | null) => {
+                                if (value != null) {
+                                  setGroupViewModes((current) => ({
+                                    ...current,
+                                    [pane.group]: value,
+                                  }));
+                                }
+                              }}
+                              size="small"
+                              value={pane.viewMode}
+                            >
+                              <ToggleButton value="merged">Merged</ToggleButton>
+                              <ToggleButton value="source">By source</ToggleButton>
+                            </ToggleButtonGroup>
+                          )}
+                          {pane.isGroup && pane.viewMode === "source" && (
+                            <ToggleButtonGroup
+                              aria-label={`${pane.group} child source layout`}
+                              className="groupLayoutToggles"
+                              exclusive
+                              onChange={(_, value: SourceLayout | null) => {
+                                if (value != null) {
+                                  setGroupLayouts((current) => ({
+                                    ...current,
+                                    [pane.group]: value,
+                                  }));
+                                }
+                              }}
+                              size="small"
+                              value={pane.layout}
+                            >
+                              <ToggleButton value="tiled">Tiled</ToggleButton>
+                              <ToggleButton value="vertical">Vert</ToggleButton>
+                              <ToggleButton value="horizontal">Horiz</ToggleButton>
+                            </ToggleButtonGroup>
+                          )}
+                          {(!pane.isGroup || pane.viewMode === "merged") && (
+                            <LevelButtons
+                              ariaLabel={`${pane.group} levels`}
+                              onToggle={(level) => togglePaneLevel(pane.scopeKey, level)}
+                              selected={pane.levels}
+                            />
+                          )}
                           <PaneMenu
-                            autoScroll={sourceAutoScroll(autoScrollSources, pane.source)}
+                            autoScroll={sourceAutoScroll(autoScrollSources, pane.scopeKey)}
                             details={showLineDetails}
-                            expungeLabel="Expunge"
-                            label={`${pane.source} controls`}
-                            onAutoScrollChange={(enabled) => toggleAutoScroll(pane.source, enabled)}
-                            onClear={() => clearSourceRecords(pane.source)}
-                            onDetailsChange={(enabled) => toggleLineDetails(pane.source, enabled)}
+                            expungeLabel={pane.isGroup ? "Expunge Group" : "Expunge"}
+                            label={`${pane.group} controls`}
+                            onAutoScrollChange={(enabled) => toggleAutoScroll(pane.scopeKey, enabled)}
+                            onClear={() =>
+                              pane.isGroup
+                                ? clearGroupRecords(pane.group)
+                                : clearSourceRecords(pane.childSources[0] ?? pane.group)
+                            }
+                            onDetailsChange={(enabled) => toggleLineDetails(pane.scopeKey, enabled)}
                             onExpunge={() => {
-                              void expungeRecords(pane.source);
+                              if (pane.isGroup) {
+                                void expungeGroupRecords(pane);
+                                return;
+                              }
+                              void expungeRecords(pane.childSources[0] ?? pane.group);
                             }}
-                            onPauseChange={(enabled) => toggleSourcePause(pane.source, enabled)}
+                            onPauseChange={(enabled) => toggleSourcePause(pane.scopeKey, enabled)}
                             paused={isPaused}
                           />
                         </div>
                       </header>
-                      <div
-                        className="paneLogList"
-                        ref={(node) => {
-                          if (node == null) {
-                            delete paneLogListsRef.current[pane.source];
-                            return;
+                      {pane.isGroup && pane.viewMode === "source" ? (
+                        <div
+                          className={`nestedSourcePaneArea ${pane.layout}`}
+                          style={
+                            {
+                              "--nested-source-count": pane.childPanes.length,
+                            } as CSSProperties
                           }
-                          paneLogListsRef.current[pane.source] = node;
-                        }}
-                      >
-                        {pane.records.length === 0 ? (
-                          <div className="emptyState">No matching records.</div>
-                        ) : (
-                          pane.records.map((record) => {
-                            const level = normalizeLevel(record.level);
-                            const isSelected = selected?.id === record.id;
-                            const detailText = showLineDetails ? attrSummary(record.attrs) : "";
+                        >
+                          {pane.childPanes.map((child) => {
+                            const childDetails = sourceLineDetails(detailSources, child.scopeKey);
+                            const childPaused = sourcePaused(pausedSources, child.scopeKey);
                             return (
-                              <button
-                                className={`paneLogRow ${isSelected ? "selected" : ""}`}
-                                key={record.id}
-                                onClick={() => setSelectedID(record.id)}
-                                type="button"
-                              >
-                                <span className="time">{formatTime(record.time)}</span>
-                                <span className={`level ${levelClass[level]}`}>{level}</span>
-                                <span className="message">
-                                  <span>{record.message}</span>
-                                  {detailText !== "" && (
-                                    <span className="inlineAttrs"> "{detailText}"</span>
+                              <section className="nestedSourcePane" key={child.source}>
+                                <header className="nestedSourceHeader">
+                                  <div className="sourcePaneTitle">
+                                    <strong title={child.source}>{child.source}</strong>
+                                    <span>
+                                      {child.records.length} / {child.total}
+                                    </span>
+                                  </div>
+                                  <div className="sourcePaneActions">
+                                    <LevelButtons
+                                      ariaLabel={`${child.source} levels`}
+                                      onToggle={(level) => togglePaneLevel(child.scopeKey, level)}
+                                      selected={child.levels}
+                                    />
+                                    <PaneMenu
+                                      autoScroll={sourceAutoScroll(autoScrollSources, child.scopeKey)}
+                                      details={childDetails}
+                                      expungeLabel="Expunge"
+                                      label={`${child.source} controls`}
+                                      onAutoScrollChange={(enabled) =>
+                                        toggleAutoScroll(child.scopeKey, enabled)
+                                      }
+                                      onClear={() => clearSourceRecords(child.source)}
+                                      onDetailsChange={(enabled) =>
+                                        toggleLineDetails(child.scopeKey, enabled)
+                                      }
+                                      onExpunge={() => {
+                                        void expungeRecords(child.source);
+                                      }}
+                                      onPauseChange={(enabled) =>
+                                        toggleSourcePause(child.scopeKey, enabled)
+                                      }
+                                      paused={childPaused}
+                                    />
+                                  </div>
+                                </header>
+                                <div
+                                  className="paneLogList"
+                                  ref={(node) => {
+                                    if (node == null) {
+                                      delete paneLogListsRef.current[child.scopeKey];
+                                      return;
+                                    }
+                                    paneLogListsRef.current[child.scopeKey] = node;
+                                  }}
+                                >
+                                  {child.records.length === 0 ? (
+                                    <div className="emptyState">No matching records.</div>
+                                  ) : (
+                                    child.records.map((record) => {
+                                      const level = normalizeLevel(record.level);
+                                      const isSelected = selected?.id === record.id;
+                                      const detailText = childDetails ? attrSummary(record.attrs) : "";
+                                      return (
+                                        <button
+                                          className={`paneLogRow ${isSelected ? "selected" : ""}`}
+                                          key={record.id}
+                                          onClick={() => setSelectedID(record.id)}
+                                          type="button"
+                                        >
+                                          <span className="time">{formatTime(record.time)}</span>
+                                          <span className={`level ${levelClass[level]}`}>{level}</span>
+                                          <span className="message">
+                                            <span>{record.message}</span>
+                                            {detailText !== "" && (
+                                              <span className="inlineAttrs"> "{detailText}"</span>
+                                            )}
+                                          </span>
+                                        </button>
+                                      );
+                                    })
                                   )}
-                                </span>
-                              </button>
+                                </div>
+                              </section>
                             );
-                          })
-                        )}
-                      </div>
+                          })}
+                        </div>
+                      ) : (
+                        <div
+                          className="paneLogList"
+                          ref={(node) => {
+                            if (node == null) {
+                              delete paneLogListsRef.current[pane.scopeKey];
+                              return;
+                            }
+                            paneLogListsRef.current[pane.scopeKey] = node;
+                          }}
+                        >
+                          {pane.visibleRecords.length === 0 ? (
+                            <div className="emptyState">No matching records.</div>
+                          ) : (
+                            pane.visibleRecords.map((record) => {
+                              const level = normalizeLevel(record.level);
+                              const isSelected = selected?.id === record.id;
+                              const detailText = showLineDetails ? attrSummary(record.attrs) : "";
+                              return (
+                                <button
+                                  className={`paneLogRow ${showRecordSource ? "withSource" : ""} ${isSelected ? "selected" : ""}`}
+                                  key={record.id}
+                                  onClick={() => setSelectedID(record.id)}
+                                  type="button"
+                                >
+                                  <span className="time">{formatTime(record.time)}</span>
+                                  <span className={`level ${levelClass[level]}`}>{level}</span>
+                                  {showRecordSource && <span className="source">{record.source}</span>}
+                                  <span className="message">
+                                    <span>{record.message}</span>
+                                    {detailText !== "" && (
+                                      <span className="inlineAttrs"> "{detailText}"</span>
+                                    )}
+                                  </span>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
                     </section>
                   );
                 })
@@ -1133,6 +1475,10 @@ function RecordDetail({ selected }: { selected: LogRecord | null }) {
             <div>
               <dt>source</dt>
               <dd>{selected.source}</dd>
+            </div>
+            <div>
+              <dt>sourceGroup</dt>
+              <dd>{recordSourceGroup(selected)}</dd>
             </div>
             {Object.entries(selected.attrs ?? {}).map(([key, value]) => (
               <div key={key}>

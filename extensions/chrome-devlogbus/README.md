@@ -44,3 +44,8 @@ chrome:localhost:5173
 ```
 
 Use the popup source override when a shorter app name is more useful, such as `chrome:tenant-ui`.
+
+Network events keep the request target as the record source, such as
+`chrome:scpapi.review.spacelink.com`, while also adding `sourceGroup` for the
+owning browser tab. The DevLogBus UI uses that parent group to show browser tab
+traffic as a nested source when one tab talks to multiple targets.

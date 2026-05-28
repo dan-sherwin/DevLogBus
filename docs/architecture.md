@@ -33,6 +33,11 @@ records from browser tools at `POST /api/records`. Browser publishers use the
 same `protocol.Record` shape as Go clients so the merged stream can show client
 and server events in one chronological timeline.
 
+Browser publishers can include `sourceGroup` in record attributes. The UI treats
+that as a dynamic parent source: top-level merged view still flattens every
+record, while by-source view can show a parent source with child sources for
+console, runtime, and network target streams.
+
 ## Go App Shape
 
 The project is one Go module with multiple binaries. That keeps the public import paths simple while still letting each binary use Dan's standard bootstrap-app conventions.

@@ -217,6 +217,7 @@ function handleNetworkRequest(tabState, source, params) {
     wallTime: params.wallTime,
     initiator: params.initiator?.type ?? "",
   };
+  const target = urlParts(entry.url);
   tabState.requests.set(requestKey(source, params.requestId), entry);
   trimRequestMap(tabState.requests);
 
@@ -230,6 +231,9 @@ function handleNetworkRequest(tabState, source, params) {
       requestId: params.requestId,
       method: entry.method,
       url: entry.url,
+      targetHost: target.host,
+      targetOrigin: target.origin,
+      path: target.path,
       resourceType: entry.type,
       initiator: entry.initiator,
     }),
@@ -242,6 +246,7 @@ function recordFromNetworkResponse(tabState, source, params) {
     return null;
   }
   const request = tabState.requests.get(requestKey(source, params.requestId)) ?? {};
+  const target = urlParts(response.url);
   const method = request.method ?? "GET";
   const status = Number(response.status ?? 0);
   const level = status >= 500 ? "ERROR" : status >= 400 ? "WARN" : "INFO";
@@ -254,6 +259,9 @@ function recordFromNetworkResponse(tabState, source, params) {
       requestId: params.requestId,
       method,
       url: response.url,
+      targetHost: target.host,
+      targetOrigin: target.origin,
+      path: target.path,
       status,
       statusText: response.statusText ?? "",
       mimeType: response.mimeType ?? "",
@@ -268,6 +276,7 @@ function recordFromNetworkFailure(tabState, source, params) {
   if (shouldSkipURL(request.url, tabState.options.endpoint)) {
     return null;
   }
+  const target = urlParts(request.url);
   return {
     level: params.canceled ? "WARN" : "ERROR",
     source: sourceName(tabState, request.url),
@@ -277,6 +286,9 @@ function recordFromNetworkFailure(tabState, source, params) {
       requestId: params.requestId,
       method: request.method ?? "",
       url: request.url ?? "",
+      targetHost: target.host,
+      targetOrigin: target.origin,
+      path: target.path,
       errorText: params.errorText ?? "",
       canceled: Boolean(params.canceled),
       resourceType: params.type ?? request.type ?? "",
@@ -346,13 +358,15 @@ function recordFromLogEntry(tabState, source, entry) {
 }
 
 function makeLifecycleRecord(tab, options, action) {
+  const source = options.sourceOverride || defaultSource(tab.url, tab.id);
   return {
     time: new Date().toISOString(),
     level: "INFO",
-    source: options.sourceOverride || defaultSource(tab.url, tab.id),
+    source,
     message: `DevLogBus browser tap ${action}`,
     attrs: {
       event: `browser_tap.${action}`,
+      sourceGroup: source,
       tabId: tab.id,
       title: tab.title ?? "",
       url: tab.url ?? "",
@@ -431,7 +445,11 @@ function normalizeEndpoint(endpoint) {
 }
 
 function sourceName(tabState, eventURL) {
-  return tabState.options.sourceOverride || defaultSource(eventURL || tabState.url, tabState.tabId);
+  return defaultSource(eventURL || tabState.url, tabState.tabId);
+}
+
+function groupName(tabState) {
+  return tabState.options.sourceOverride || defaultSource(tabState.url, tabState.tabId);
 }
 
 function defaultSource(rawURL, tabId) {
@@ -446,6 +464,7 @@ function defaultSource(rawURL, tabId) {
 function baseAttrs(tabState, source, attrs) {
   return sanitizeAttrs({
     ...attrs,
+    sourceGroup: groupName(tabState),
     tabId: tabState.tabId,
     tabTitle: tabState.title,
     tabURL: tabState.url,
@@ -563,6 +582,19 @@ function urlForMessage(rawURL) {
     return `${url.pathname || "/"}${url.search}`;
   } catch {
     return rawURL;
+  }
+}
+
+function urlParts(rawURL) {
+  try {
+    const url = new URL(rawURL);
+    return {
+      host: url.host,
+      origin: url.origin,
+      path: `${url.pathname || "/"}${url.search}`,
+    };
+  } catch {
+    return { host: "", origin: "", path: rawURL ?? "" };
   }
 }
 
