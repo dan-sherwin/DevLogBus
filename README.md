@@ -9,7 +9,7 @@ It is not a retention stack, alerting system, metrics backend, or production obs
 ```text
 cmd/
   devlogbusd/        local broker daemon entrypoint
-  devlogbus/         CLI client, future TUI entrypoint
+  devlogbus/         CLI client and interactive TUI entrypoint
   devlogbus-journal-bridge/
                      Linux journald-to-DevLogBus bridge
 
@@ -109,6 +109,28 @@ curl -X POST http://127.0.0.1:7423/api/records \
 Load the Chrome browser tap from `extensions/chrome-devlogbus` to publish
 console, runtime, browser log, and network events from the active tab into the
 same DevLogBus stream as backend service records.
+
+## Interactive Viewers
+
+The embedded browser UI and the terminal UI both support the two modes that
+matter during active debugging:
+
+- `MERGED` shows every selected record in one chronological timeline.
+- `BY SOURCE` splits the same stream into source panes.
+
+Browser publishers can include a `sourceGroup` attribute. DevLogBus uses that
+to treat one browser tab as a parent source group while still preserving child
+sources for console/runtime records and individual network targets. When the
+top-level view is merged, child sources are flattened into the same timeline.
+When the top-level view is by source, a multi-child browser group acts like a
+mini DevLogBus window with its own merged/by-source mode, layout controls,
+level filters, pause, clear, expunge, and details controls.
+
+The browser UI can pop a source group or individual source into its own window
+and later reattach it to the main layout. The TUI has the same grouping model:
+press `enter` on a grouped pane to drill into child sources, and press `esc` or
+`backspace` to return to the parent source list. Press `?` or `h` in the TUI for
+the full on-screen help reference.
 
 ## Go slog Handler
 

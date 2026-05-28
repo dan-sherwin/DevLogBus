@@ -3,7 +3,7 @@
 DevLogBus has three cooperating pieces:
 
 - Producers publish structured records.
-- `devlogbusd` accepts records over a configured broker endpoint, can optionally listen on an extra TCP address, and keeps an in-memory ring buffer.
+- `devlogbusd` accepts records over a configured broker endpoint, can optionally listen on an extra TCP address, and keeps a per-source in-memory replay buffer.
 - `devlogbus-journal-bridge` can run on a Linux host and forward systemd journal records into a broker for active troubleshooting.
 - Clients subscribe to replay and live records with lightweight filters.
 - The browser UI is built from `internal/devlogbusd/ui`, embedded into `devlogbusd`, and served by the daemon's HTTP listener.
@@ -50,7 +50,9 @@ interaction model. Top-level by-source mode renders source groups as panes;
 pressing enter on a grouped pane drills into its child sources, and escape or
 backspace returns to the parent source list. Group panes preserve the normal
 levels, pause, bottom, details, clear, and expunge controls by keying state on
-`group:<name>` and `source:<name>` scopes instead of raw source names.
+`group:<name>` and `source:<name>` scopes instead of raw source names. The TUI
+also exposes its command reference in-app with `?` or `h` so the controls stay
+discoverable without leaving the debugging session.
 
 Chrome sources keep their stable host-based record key, but the UI can render a
 friendlier label from `tabTitle`, for example `chrome:Spacelink Cloud Portal

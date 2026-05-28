@@ -492,7 +492,7 @@ func streamTUIRecords(ctx context.Context, brokerClient *client.Client, replayPe
 		}
 
 		reconnect := false
-		records, streamErr, ok := loadInitialTUIReplay(ctx, sub, &reconnect)
+		records, ok, streamErr := loadInitialTUIReplay(ctx, sub, &reconnect)
 		if !ok {
 			_ = sub.Close()
 			return
@@ -541,7 +541,7 @@ func streamTUIRecords(ctx context.Context, brokerClient *client.Client, replayPe
 	}
 }
 
-func loadInitialTUIReplay(ctx context.Context, sub *client.Subscription, reconnect *bool) ([]protocol.Record, error, bool) {
+func loadInitialTUIReplay(ctx context.Context, sub *client.Subscription, reconnect *bool) ([]protocol.Record, bool, error) {
 	records := make([]protocol.Record, 0)
 	fallback := time.NewTimer(tuiReplayFallbackDelay)
 	defer fallback.Stop()
@@ -549,24 +549,24 @@ func loadInitialTUIReplay(ctx context.Context, sub *client.Subscription, reconne
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, nil, false
+			return nil, false, nil
 		case <-sub.ReplayDone:
-			return drainAvailableTUIRecords(records, sub.Records), nil, true
+			return drainAvailableTUIRecords(records, sub.Records), true, nil
 		case record, ok := <-sub.Records:
 			if !ok {
 				*reconnect = true
-				return records, nil, true
+				return records, true, nil
 			}
 			records = append(records, record)
 		case err, ok := <-sub.Errors:
 			if ok && err != nil && ctx.Err() == nil {
 				*reconnect = true
-				return records, err, true
+				return records, true, err
 			}
 			*reconnect = true
-			return records, nil, true
+			return records, true, nil
 		case <-fallback.C:
-			return drainAvailableTUIRecords(records, sub.Records), nil, true
+			return drainAvailableTUIRecords(records, sub.Records), true, nil
 		}
 	}
 }
@@ -2163,15 +2163,15 @@ func padANSI(value string, width int) string {
 	return value + strings.Repeat(" ", padding)
 }
 
-func clampInt(value int, min int, max int) int {
-	if max < min {
+func clampInt(value int, lower int, upper int) int {
+	if upper < lower {
 		return 0
 	}
-	if value < min {
-		return min
+	if value < lower {
+		return lower
 	}
-	if value > max {
-		return max
+	if value > upper {
+		return upper
 	}
 	return value
 }
