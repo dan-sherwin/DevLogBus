@@ -316,7 +316,7 @@ p {
 }
 
 .sourceToggle {
-  max-width: 240px;
+  max-width: 340px;
   min-width: 86px;
   height: 34px;
   border: 1px solid var(--border);
@@ -326,7 +326,14 @@ p {
   overflow: hidden;
   padding: 0 10px;
   text-overflow: ellipsis;
+  text-align: left;
+  text-transform: none !important;
   white-space: nowrap;
+}
+
+.sourceToggle.MuiButton-root {
+  justify-content: flex-start;
+  text-transform: none;
 }
 
 .sourceToggle.MuiButton-contained {
@@ -763,6 +770,12 @@ p {
   color: var(--text-muted);
   font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
   font-size: 12px;
+}
+
+.source {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .message {

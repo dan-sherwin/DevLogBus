@@ -43,6 +43,7 @@ type PaneArea = {
 type SourceGroup = {
   childSources: string[];
   group: string;
+  label: string;
   records: LogRecord[];
 };
 
@@ -51,6 +52,7 @@ type SourcePaneModel = {
   childSources: string[];
   group: string;
   isGroup: boolean;
+  label: string;
   layout: SourceLayout;
   levels: LogLevel[];
   records: LogRecord[];
@@ -61,6 +63,7 @@ type SourcePaneModel = {
 };
 
 type ChildSourcePane = {
+  label: string;
   levels: LogLevel[];
   records: LogRecord[];
   scopeKey: string;
@@ -241,6 +244,34 @@ function recordSourceGroup(record: LogRecord): string {
   return record.source;
 }
 
+function chromeSourceLabel(source: string, records: LogRecord[]): string {
+  if (!source.startsWith("chrome:")) {
+    return source;
+  }
+  const host = source.slice("chrome:".length);
+  if (host === "") {
+    return source;
+  }
+  for (const record of records) {
+    const tabURL = attrString(record.attrs, "tabURL") || attrString(record.attrs, "url");
+    if (tabURL === "" || defaultChromeSource(tabURL, record.attrs?.tabId) !== source) {
+      continue;
+    }
+    const title = (attrString(record.attrs, "tabTitle") || attrString(record.attrs, "title")).replace(
+      /\s+/g,
+      " ",
+    );
+    if (title !== "" && title !== host) {
+      return `chrome:${title} (${host})`;
+    }
+  }
+  return source;
+}
+
+function recordSourceLabel(record: LogRecord): string {
+  return chromeSourceLabel(record.source, [record]);
+}
+
 function groupKey(group: string): string {
   return `group:${group}`;
 }
@@ -256,6 +287,7 @@ function buildSourceGroups(records: LogRecord[]): SourceGroup[] {
     const entry = groups.get(group) ?? {
       childSources: [],
       group,
+      label: group,
       records: [],
     };
     entry.records.push(record);
@@ -269,6 +301,7 @@ function buildSourceGroups(records: LogRecord[]): SourceGroup[] {
     .map((group) => ({
       ...group,
       childSources: group.childSources.sort(),
+      label: chromeSourceLabel(group.group, group.records),
       records: group.records.sort(compareRecords),
     }))
     .sort((a, b) => a.group.localeCompare(b.group));
@@ -527,7 +560,6 @@ export default function App() {
   }, [records.length, viewMode]);
 
   const sourceGroups = useMemo(() => buildSourceGroups(records), [records]);
-  const sources = useMemo(() => sourceGroups.map((group) => group.group), [sourceGroups]);
   const selectedGroups = useMemo(
     () => sourceGroups.filter((group) => !excludedSources.includes(group.group)),
     [excludedSources, sourceGroups],
@@ -566,6 +598,7 @@ export default function App() {
         const childLevels = sourceLevels(perSourceLevels, childScope);
         const sourceRecords = group.records.filter((record) => record.source === source);
         return {
+          label: chromeSourceLabel(source, sourceRecords),
           levels: childLevels,
           records: sourceRecords.filter(
             (record) =>
@@ -582,6 +615,7 @@ export default function App() {
         childSources: group.childSources,
         group: group.group,
         isGroup,
+        label: group.label,
         layout: groupLayouts[group.group] ?? "tiled",
         levels: paneLevels,
         records: group.records,
@@ -899,21 +933,24 @@ export default function App() {
               ))}
             </ToggleButtonGroup>
           )}
-          {sources.length > 0 && (
+          {sourceGroups.length > 0 && (
             <div aria-label="Sources" className="sourceToggles" role="group">
-              {sources.map((source) => (
-                <Button
-                  aria-pressed={!excludedSources.includes(source)}
-                  className="sourceToggle"
-                  key={source}
-                  onClick={() => setExcludedSources((current) => toggleSource(current, source))}
-                  size="small"
-                  title={source}
-                  variant={excludedSources.includes(source) ? "outlined" : "contained"}
-                >
-                  {source}
-                </Button>
-              ))}
+              {sourceGroups.map((group) => {
+                const source = group.group;
+                return (
+                  <Button
+                    aria-pressed={!excludedSources.includes(source)}
+                    className="sourceToggle"
+                    key={source}
+                    onClick={() => setExcludedSources((current) => toggleSource(current, source))}
+                    size="small"
+                    title={source}
+                    variant={excludedSources.includes(source) ? "outlined" : "contained"}
+                  >
+                    {group.label}
+                  </Button>
+                );
+              })}
             </div>
           )}
         </section>
@@ -969,7 +1006,7 @@ export default function App() {
                       >
                         <span className="time">{formatTime(record.time)}</span>
                         <span className={`level ${levelClass[level]}`}>{level}</span>
-                        <span className="source">{record.source}</span>
+                        <span className="source">{recordSourceLabel(record)}</span>
                         <span className="message">
                           <span>{record.message}</span>
                           {detailText !== "" && (
@@ -1013,7 +1050,7 @@ export default function App() {
                         className={`sourcePaneHeader ${pane.isGroup ? "groupPaneHeader" : ""}`}
                       >
                         <div className="sourcePaneTitle">
-                          <strong title={pane.group}>{pane.group}</strong>
+                          <strong title={pane.group}>{pane.label}</strong>
                           <span>
                             {visibleCount} / {pane.total}
                           </span>
@@ -1026,7 +1063,7 @@ export default function App() {
                         <div className="sourcePaneActions">
                           {pane.isGroup && (
                             <ToggleButtonGroup
-                              aria-label={`${pane.group} grouping`}
+                              aria-label={`${pane.label} grouping`}
                               className="groupModeToggles"
                               exclusive
                               onChange={(_, value: ViewMode | null) => {
@@ -1046,7 +1083,7 @@ export default function App() {
                           )}
                           {pane.isGroup && pane.viewMode === "source" && (
                             <ToggleButtonGroup
-                              aria-label={`${pane.group} child source layout`}
+                              aria-label={`${pane.label} child source layout`}
                               className="groupLayoutToggles"
                               exclusive
                               onChange={(_, value: SourceLayout | null) => {
@@ -1067,7 +1104,7 @@ export default function App() {
                           )}
                           {(!pane.isGroup || pane.viewMode === "merged") && (
                             <LevelButtons
-                              ariaLabel={`${pane.group} levels`}
+                              ariaLabel={`${pane.label} levels`}
                               onToggle={(level) => togglePaneLevel(pane.scopeKey, level)}
                               selected={pane.levels}
                             />
@@ -1076,7 +1113,7 @@ export default function App() {
                             autoScroll={sourceAutoScroll(autoScrollSources, pane.scopeKey)}
                             details={showLineDetails}
                             expungeLabel={pane.isGroup ? "Expunge Group" : "Expunge"}
-                            label={`${pane.group} controls`}
+                            label={`${pane.label} controls`}
                             onAutoScrollChange={(enabled) => toggleAutoScroll(pane.scopeKey, enabled)}
                             onClear={() =>
                               pane.isGroup
@@ -1112,14 +1149,14 @@ export default function App() {
                               <section className="nestedSourcePane" key={child.source}>
                                 <header className="nestedSourceHeader">
                                   <div className="sourcePaneTitle">
-                                    <strong title={child.source}>{child.source}</strong>
+                                    <strong title={child.source}>{child.label}</strong>
                                     <span>
                                       {child.records.length} / {child.total}
                                     </span>
                                   </div>
                                   <div className="sourcePaneActions">
                                     <LevelButtons
-                                      ariaLabel={`${child.source} levels`}
+                                      ariaLabel={`${child.label} levels`}
                                       onToggle={(level) => togglePaneLevel(child.scopeKey, level)}
                                       selected={child.levels}
                                     />
@@ -1127,7 +1164,7 @@ export default function App() {
                                       autoScroll={sourceAutoScroll(autoScrollSources, child.scopeKey)}
                                       details={childDetails}
                                       expungeLabel="Expunge"
-                                      label={`${child.source} controls`}
+                                      label={`${child.label} controls`}
                                       onAutoScrollChange={(enabled) =>
                                         toggleAutoScroll(child.scopeKey, enabled)
                                       }
@@ -1213,7 +1250,9 @@ export default function App() {
                                 >
                                   <span className="time">{formatTime(record.time)}</span>
                                   <span className={`level ${levelClass[level]}`}>{level}</span>
-                                  {showRecordSource && <span className="source">{record.source}</span>}
+                                  {showRecordSource && (
+                                    <span className="source">{recordSourceLabel(record)}</span>
+                                  )}
                                   <span className="message">
                                     <span>{record.message}</span>
                                     {detailText !== "" && (

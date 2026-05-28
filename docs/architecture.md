@@ -38,6 +38,10 @@ that as a dynamic parent source: top-level merged view still flattens every
 record, while by-source view can show a parent source with child sources for
 console, runtime, and network target streams.
 
+Chrome sources keep their stable host-based record key, but the UI can render a
+friendlier label from `tabTitle`, for example `chrome:Spacelink Cloud Portal
+(localhost:3010)`.
+
 ## Go App Shape
 
 The project is one Go module with multiple binaries. That keeps the public import paths simple while still letting each binary use Dan's standard bootstrap-app conventions.

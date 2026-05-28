@@ -49,3 +49,7 @@ Network events keep the request target as the record source, such as
 `chrome:scpapi.review.spacelink.com`, while also adding `sourceGroup` for the
 owning browser tab. The DevLogBus UI uses that parent group to show browser tab
 traffic as a nested source when one tab talks to multiple targets.
+
+When the tab title is available, the UI displays the owning Chrome source with
+the title and host, such as `chrome:Spacelink Cloud Portal (localhost:3010)`.
+The underlying record source stays unchanged for filtering and expunging.
