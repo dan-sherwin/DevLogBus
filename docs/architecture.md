@@ -42,6 +42,11 @@ Chrome sources keep their stable host-based record key, but the UI can render a
 friendlier label from `tabTitle`, for example `chrome:Spacelink Cloud Portal
 (localhost:3010)`.
 
+Browser tap detach is treated as operationally important. When Chrome ends a
+debugger session for any reason, including the user dismissing the debugger
+banner, the extension publishes a `WARN` lifecycle record so the timeline shows
+that browser-side capture stopped.
+
 ## Go App Shape
 
 The project is one Go module with multiple binaries. That keeps the public import paths simple while still letting each binary use Dan's standard bootstrap-app conventions.

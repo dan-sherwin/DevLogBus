@@ -13,6 +13,7 @@ const FLUSH_INTERVAL_MS = 250;
 const FLUSH_BATCH_SIZE = 100;
 
 const attachedTabs = new Map();
+const detachReasonOverrides = new Map();
 const publishQueue = [];
 let flushTimer = null;
 let cachedOptions = null;
@@ -21,11 +22,8 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
   void handleDebuggerEvent(source, method, params ?? {});
 });
 
-chrome.debugger.onDetach.addListener((source) => {
-  if (source.tabId != null) {
-    attachedTabs.delete(source.tabId);
-    void setTabBadge(source.tabId, "");
-  }
+chrome.debugger.onDetach.addListener((source, reason) => {
+  void handleDebuggerDetach(source, reason);
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
@@ -102,13 +100,17 @@ async function detachActiveTab() {
   if (tab.id == null) {
     throw new Error("active tab has no id");
   }
-  const options = await loadOptions();
   if (await isDebuggerAttached(tab.id)) {
-    await chrome.debugger.detach({ tabId: tab.id });
+    detachReasonOverrides.set(tab.id, "popup_detach");
+    try {
+      await chrome.debugger.detach({ tabId: tab.id });
+    } catch (error) {
+      detachReasonOverrides.delete(tab.id);
+      throw error;
+    }
   }
   attachedTabs.delete(tab.id);
   await setTabBadge(tab.id, "");
-  enqueueRecord(makeLifecycleRecord(tab, options, "detached"));
   return getPopupStatus();
 }
 
@@ -183,6 +185,20 @@ async function handleDebuggerEvent(source, method, params) {
   }
 }
 
+async function handleDebuggerDetach(source, reason) {
+  if (source.tabId == null) {
+    return;
+  }
+  const tabId = source.tabId;
+  const tabState = attachedTabs.get(tabId);
+  const detachReason = detachReasonOverrides.get(tabId) || reason;
+  detachReasonOverrides.delete(tabId);
+  attachedTabs.delete(tabId);
+  await setTabBadge(tabId, "");
+  enqueueRecord(await makeDetachRecord(tabId, tabState, detachReason));
+  void flushQueue();
+}
+
 async function stateForTab(tabId, options) {
   const existing = attachedTabs.get(tabId);
   if (existing != null) {
@@ -193,6 +209,25 @@ async function stateForTab(tabId, options) {
   const next = makeTabState(tab, options);
   attachedTabs.set(tabId, next);
   return next;
+}
+
+async function tabStateForDetach(tabId, existing) {
+  if (existing != null) {
+    return existing;
+  }
+  const options = await loadOptions();
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    return makeTabState(tab, options);
+  } catch {
+    return {
+      tabId,
+      title: "",
+      url: "",
+      options,
+      requests: new Map(),
+    };
+  }
 }
 
 function makeTabState(tab, options) {
@@ -370,6 +405,28 @@ function makeLifecycleRecord(tab, options, action) {
       tabId: tab.id,
       title: tab.title ?? "",
       url: tab.url ?? "",
+    },
+  };
+}
+
+async function makeDetachRecord(tabId, tabState, reason) {
+  const state = await tabStateForDetach(tabId, tabState);
+  const detachReason = reason || "unknown";
+  const source = groupName(state);
+  return {
+    time: new Date().toISOString(),
+    level: "WARN",
+    source,
+    message: `*** DEVLOGBUS BROWSER TAP DETACHED *** reason=${detachReason}; no more browser logs will arrive for this tab until reattached`,
+    attrs: {
+      event: "browser_tap.detached",
+      detachReason,
+      sourceGroup: source,
+      tabId,
+      title: state.title,
+      url: state.url,
+      attention: "debugger_detached",
+      action: "reattach DevLogBus Browser Tap to resume browser capture",
     },
   };
 }

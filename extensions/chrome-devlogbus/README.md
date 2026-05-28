@@ -53,3 +53,8 @@ traffic as a nested source when one tab talks to multiple targets.
 When the tab title is available, the UI displays the owning Chrome source with
 the title and host, such as `chrome:Spacelink Cloud Portal (localhost:3010)`.
 The underlying record source stays unchanged for filtering and expunging.
+
+Any debugger detach publishes a `WARN` record with a loud
+`*** DEVLOGBUS BROWSER TAP DETACHED ***` message. That includes explicit popup
+detaches, Chrome's debugger banner being dismissed, DevTools taking over the
+debugger session, and tab close events.
