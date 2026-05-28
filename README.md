@@ -75,6 +75,10 @@ go run ./cmd/devlogbus tui
 go run ./cmd/devlogbus tui --endpoint prod-box:7422 --replay-per-source 500
 ```
 
+Inside the TUI, press `?` for the full control reference, including search,
+pane layouts, source-group drilldown, level filters, pause/follow-bottom,
+details, clear, and expunge controls.
+
 Emit a test record:
 
 ```bash

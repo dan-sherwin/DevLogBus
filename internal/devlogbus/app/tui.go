@@ -91,6 +91,7 @@ type (
 		sourceLayout string
 		paneWidth    int
 		focusedGroup string
+		helpVisible  bool
 
 		search       string
 		searchActive bool
@@ -295,6 +296,15 @@ func (m tuiModel) View() string {
 
 	header := renderModel.renderHeader()
 	footer := renderModel.renderFooter()
+	if renderModel.helpVisible {
+		bodyHeight := renderModel.height - lipgloss.Height(header) - lipgloss.Height(footer)
+		if bodyHeight < 0 {
+			bodyHeight = 0
+		}
+		body := forceHeight(renderModel.renderHelpBody(renderModel.width, bodyHeight), bodyHeight)
+		frame := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+		return forceHeight(frame, renderModel.height)
+	}
 	if !renderModel.initialReplayLoaded {
 		bodyHeight := renderModel.height - lipgloss.Height(header) - lipgloss.Height(footer)
 		if bodyHeight < 0 {
@@ -338,6 +348,20 @@ func (m tuiModel) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	if m.helpVisible {
+		switch msg.String() {
+		case "ctrl+c":
+			if m.cancel != nil {
+				m.cancel()
+			}
+			return m, tea.Quit
+		case "?", "esc", "q", "h", "enter", "backspace", "ctrl+h":
+			m.helpVisible = false
+			return m, nil
+		}
+		return m, nil
+	}
+
 	if m.pendingExpunge != nil {
 		switch msg.String() {
 		case "y", "Y":
@@ -360,6 +384,8 @@ func (m tuiModel) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "/":
 		m.searchActive = true
+	case "?":
+		m.helpVisible = true
 	case "esc":
 		if m.focusedGroup != "" && m.viewMode == tuiViewSource {
 			m.leaveFocusedGroup()
@@ -779,6 +805,9 @@ func (m tuiModel) renderHeader() string {
 		}
 		title += fmt.Sprintf("  search:%q%s", m.search, marker)
 	}
+	if m.helpVisible {
+		title += "  help"
+	}
 	return tuiHeaderStyle.Render(fitText(title, contentWidth))
 }
 
@@ -829,13 +858,65 @@ func (m tuiModel) renderFooter() string {
 		}
 		return tuiFooterStyle.Render(fitText("Confirm expunge "+target+"? y/n", contentWidth))
 	}
-	keys := "q quit  / search  m mode  a layout  enter drill  esc/back out  tab focus  [] source  s include  1-4 levels  p pause  b bottom  d details  c clear  x expunge  +/- width"
+	if m.helpVisible {
+		return tuiFooterStyle.Render(fitText("Help | ? esc q h enter backspace close  ctrl+c quit", contentWidth))
+	}
+	keys := "? help  q quit  / search  m mode  a layout  enter drill  esc/back out  tab focus  [] source  s include  1-4 levels  p pause  b bottom  d details  c clear  x expunge  +/- width"
 	if m.errText != "" {
 		keys = m.status + ": " + m.errText + " | " + keys
 	} else if m.status != "" {
 		keys = m.status + " | " + keys
 	}
 	return tuiFooterStyle.Render(fitText(keys, contentWidth))
+}
+
+func (m tuiModel) renderHelpBody(width int, height int) string {
+	if width <= 0 || height <= 0 {
+		return ""
+	}
+	lines := []string{
+		"Navigation",
+		"  ? opens this help screen. esc, q, h, enter, or backspace closes it. ctrl+c quits.",
+		"  up/down or k/j moves the selected record. pgup/pgdown pages records.",
+		"  home/g jumps to the first record. end/G jumps to the latest record.",
+		"",
+		"Views and Layouts",
+		"  m toggles merged view and by-source view.",
+		"  merged view is one chronological stream across all included sources.",
+		"  by-source view renders panes for source groups or sources.",
+		"  a cycles tiled, vertical, and horizontal source-pane layouts.",
+		"  +/- changes tiled pane width.",
+		"",
+		"Source Focus",
+		"  tab and shift+tab move focus between included source panes.",
+		"  [ and ] move focus across all source chips. left/right also work.",
+		"  h is kept as vim-style left/source navigation.",
+		"  s includes or excludes the focused source or source group.",
+		"",
+		"Source Groups",
+		"  Browser streams can publish sourceGroup. The TUI shows those as parent panes.",
+		"  enter drills into a grouped pane so its child sources become the visible panes.",
+		"  esc or backspace returns from child-source drilldown to the parent source list.",
+		"",
+		"Per-Pane Controls",
+		"  1 toggles DEBUG, 2 toggles INFO, 3 toggles WARN, 4 toggles ERROR.",
+		"  p pauses the active merged stream, source, or group.",
+		"  b toggles follow-bottom. When on, new records keep the pane pinned to the latest entry.",
+		"  d toggles inline attribute details for the active pane.",
+		"  c clears visible buffered records for the active pane without expunging broker replay.",
+		"  x queues an expunge confirmation. In grouped panes it expunges each child source.",
+		"",
+		"Search",
+		"  / starts search. Type to filter records by time, level, source, group, message, or attrs.",
+		"  enter or esc leaves search input active state. esc again clears the search.",
+		"",
+		"Reading The Screen",
+		"  Parenthesized source chips are excluded. Bracketed chips are included.",
+		"  A leading > marks the focused source chip.",
+		"  Lowercase level letters mean that level is disabled for the active pane.",
+		"  The details panel follows the selected record in the active view.",
+	}
+	return renderTUIPanel("DevLogBus TUI Help", lines, width, height, true)
 }
 
 func (m tuiModel) renderBody(width int, height int) string {

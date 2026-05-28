@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dan-sherwin/devlogbus/pkg/protocol"
 )
@@ -33,11 +34,13 @@ func TestTUIViewDoesNotExceedTerminalHeight(t *testing.T) {
 		name   string
 		mode   string
 		layout string
+		help   bool
 	}{
 		{name: "merged", mode: tuiViewMerged},
 		{name: "source tiled", mode: tuiViewSource, layout: tuiLayoutTiled},
 		{name: "source vertical", mode: tuiViewSource, layout: tuiLayoutVertical},
 		{name: "source horizontal", mode: tuiViewSource, layout: tuiLayoutHorizontal},
+		{name: "help", mode: tuiViewSource, layout: tuiLayoutTiled, help: true},
 	}
 
 	for _, tc := range cases {
@@ -46,6 +49,7 @@ func TestTUIViewDoesNotExceedTerminalHeight(t *testing.T) {
 			if tc.layout != "" {
 				m.sourceLayout = tc.layout
 			}
+			m.helpVisible = tc.help
 
 			view := m.View()
 			if got := lipgloss.Height(view); got > m.height {
@@ -57,6 +61,80 @@ func TestTUIViewDoesNotExceedTerminalHeight(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestTUIHelpScreenRendersBeforeReplayAndCloses(t *testing.T) {
+	m := newTUIModel("127.0.0.1:7422", 100, nil, nil)
+	m.width = 100
+	m.height = 28
+
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	if cmd != nil {
+		t.Fatalf("help key returned command, want nil")
+	}
+	updated := next.(tuiModel)
+	if !updated.helpVisible {
+		t.Fatalf("helpVisible = false, want true")
+	}
+
+	view := updated.View()
+	if !strings.Contains(view, "DevLogBus TUI Help") {
+		t.Fatalf("help view = %q, want help title", view)
+	}
+	if !strings.Contains(view, "Source Groups") {
+		t.Fatalf("help view = %q, want source groups section", view)
+	}
+	if strings.Contains(view, "Loading replay records") {
+		t.Fatalf("help view should replace loading screen: %q", view)
+	}
+
+	next, cmd = updated.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if cmd != nil {
+		t.Fatalf("close help returned command, want nil")
+	}
+	updated = next.(tuiModel)
+	if updated.helpVisible {
+		t.Fatalf("helpVisible after esc = true, want false")
+	}
+}
+
+func TestTUIHelpKeepsHForNavigationWhenClosed(t *testing.T) {
+	m := newTUIModel("127.0.0.1:7422", 100, nil, nil)
+	m.width = 100
+	m.height = 24
+	m.viewMode = tuiViewSource
+	m.initialReplayLoaded = true
+	m.handleRecord(protocol.Record{
+		ID:      "a",
+		Time:    time.Unix(0, 0),
+		Level:   "INFO",
+		Source:  "a",
+		Message: "a",
+	})
+	m.handleRecord(protocol.Record{
+		ID:      "b",
+		Time:    time.Unix(0, int64(time.Millisecond)),
+		Level:   "INFO",
+		Source:  "b",
+		Message: "b",
+	})
+	m.sourceCursor = 1
+
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	updated := next.(tuiModel)
+	if updated.sourceCursor != 0 {
+		t.Fatalf("sourceCursor after h = %d, want 0", updated.sourceCursor)
+	}
+
+	updated.helpVisible = true
+	next, _ = updated.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	updated = next.(tuiModel)
+	if updated.helpVisible {
+		t.Fatalf("helpVisible after h = true, want false")
+	}
+	if updated.sourceCursor != 0 {
+		t.Fatalf("sourceCursor after closing help = %d, want unchanged 0", updated.sourceCursor)
 	}
 }
 
