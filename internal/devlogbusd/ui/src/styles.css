@@ -134,7 +134,37 @@ p {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+.popoutContext {
+  max-width: min(48vw, 560px);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--control-bg);
+  color: var(--text-soft);
+  padding: 4px 5px 4px 10px;
+}
+
+.popoutContext span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.reattachButton.MuiButton-root {
+  min-width: 82px;
+  height: 28px;
+  border-color: var(--border-focus);
+  color: var(--text-main);
+  text-transform: none;
 }
 
 .status {
@@ -315,6 +345,22 @@ p {
   gap: 8px;
 }
 
+.detachedToggles {
+  flex: 1 0 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detachedLabel {
+  color: var(--warn-text);
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .sourceToggle {
   max-width: 340px;
   min-width: 86px;
@@ -359,6 +405,31 @@ p {
 
 .sourceToggle:hover {
   background: var(--control-hover);
+}
+
+.detachedToggle {
+  max-width: 360px;
+  min-width: 86px;
+  height: 32px;
+  border: 1px dashed var(--warn-text) !important;
+  border-radius: 6px;
+  background: var(--warn-bg) !important;
+  color: var(--warn-text) !important;
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0 10px;
+  text-overflow: ellipsis;
+  text-align: left;
+  text-transform: none !important;
+  white-space: nowrap;
+}
+
+.detachedToggle.MuiButton-root {
+  justify-content: flex-start;
+}
+
+.detachedToggle:hover {
+  filter: brightness(1.08);
 }
 
 .content {

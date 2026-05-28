@@ -38,6 +38,13 @@ that as a dynamic parent source: top-level merged view still flattens every
 record, while by-source view can show a parent source with child sources for
 console, runtime, and network target streams.
 
+Source groups and individual child sources can be popped out into separate
+browser windows. The popout URL scopes that window to one group or source, while
+shared browser storage marks detached targets so the main layout stops rendering
+them until they are reattached. A source-group popout keeps the same merged vs.
+by-source controls as the main UI, which makes it useful as a focused debugging
+surface rather than a passive viewer clone.
+
 Chrome sources keep their stable host-based record key, but the UI can render a
 friendlier label from `tabTitle`, for example `chrome:Spacelink Cloud Portal
 (localhost:3010)`.

@@ -24,6 +24,7 @@ import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import KeyboardDoubleArrowDownIcon from "@mui/icons-material/KeyboardDoubleArrowDown";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PauseCircleOutlinedIcon from "@mui/icons-material/PauseCircleOutlined";
 import SubjectIcon from "@mui/icons-material/Subject";
 import { useMessagesContext } from "@dsherwin/mui-kit";
@@ -34,6 +35,12 @@ type ViewMode = "merged" | "source";
 type SourceLayout = "tiled" | "vertical" | "horizontal";
 type ThemePreference = "system" | "light" | "dark";
 type ResolvedThemeMode = "light" | "dark";
+type PopoutKind = "group" | "source";
+
+type PopoutTarget = {
+  key: string;
+  kind: PopoutKind;
+};
 
 type PaneArea = {
   height: number;
@@ -101,6 +108,8 @@ const paneWidthBounds = { min: 360, step: 20 };
 const defaultPaneWidth = 380;
 const paneHeightMin = 220;
 const themeStorageKey = "devlogbus-theme";
+const detachedTargetsStorageKey = "devlogbus-detached-targets";
+const detachedTargetsChannelName = "devlogbus-detached-targets";
 const levelClass: Record<LogLevel, string> = {
   DEBUG: "debug",
   INFO: "info",
@@ -280,6 +289,123 @@ function sourceKey(source: string): string {
   return `source:${source}`;
 }
 
+function targetID(target: PopoutTarget): string {
+  return `${target.kind}:${target.key}`;
+}
+
+function parseTargetID(value: string | null): PopoutTarget | null {
+  if (value == null) {
+    return null;
+  }
+  const delimiter = value.indexOf(":");
+  if (delimiter <= 0) {
+    return null;
+  }
+  const kind = value.slice(0, delimiter);
+  if (kind !== "group" && kind !== "source") {
+    return null;
+  }
+  const key = value.slice(delimiter + 1);
+  if (key === "") {
+    return null;
+  }
+  return { key, kind };
+}
+
+function parsePopoutTarget(): PopoutTarget | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return parseTargetID(new URLSearchParams(window.location.search).get("popout"));
+}
+
+function normalizeTargetIDs(ids: string[]): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const id of ids) {
+    const target = parseTargetID(id);
+    if (target == null) {
+      continue;
+    }
+    const normalizedID = targetID(target);
+    if (seen.has(normalizedID)) {
+      continue;
+    }
+    seen.add(normalizedID);
+    normalized.push(normalizedID);
+  }
+  return normalized.sort();
+}
+
+function readDetachedTargetIDs(): string[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  try {
+    const saved = window.localStorage.getItem(detachedTargetsStorageKey);
+    if (saved == null || saved === "") {
+      return [];
+    }
+    const parsed = JSON.parse(saved) as unknown;
+    return Array.isArray(parsed)
+      ? normalizeTargetIDs(parsed.filter((item): item is string => typeof item === "string"))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeDetachedTargetIDs(ids: string[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    const normalized = normalizeTargetIDs(ids);
+    if (normalized.length === 0) {
+      window.localStorage.removeItem(detachedTargetsStorageKey);
+      return;
+    }
+    window.localStorage.setItem(detachedTargetsStorageKey, JSON.stringify(normalized));
+  } catch {
+    // Detached-window state is a convenience layer; the live stream still works without storage.
+  }
+}
+
+function sameTarget(a: PopoutTarget | null, b: PopoutTarget | null): boolean {
+  return a != null && b != null && a.kind === b.kind && a.key === b.key;
+}
+
+function isTargetDetached(ids: string[], target: PopoutTarget): boolean {
+  return ids.includes(targetID(target));
+}
+
+function withDetachedTarget(ids: string[], target: PopoutTarget): string[] {
+  return normalizeTargetIDs([...ids, targetID(target)]);
+}
+
+function withoutDetachedTarget(ids: string[], target: PopoutTarget): string[] {
+  const removeID = targetID(target);
+  return normalizeTargetIDs(ids.filter((id) => id !== removeID));
+}
+
+function popoutWindowName(target: PopoutTarget): string {
+  return `devlogbus-${targetID(target).replace(/[^a-z0-9_-]/gi, "-")}`;
+}
+
+function detachedTargetLabel(
+  target: PopoutTarget,
+  sourceGroups: SourceGroup[],
+  records: LogRecord[],
+): string {
+  if (target.kind === "group") {
+    return sourceGroups.find((group) => group.group === target.key)?.label ?? target.key;
+  }
+  return chromeSourceLabel(
+    target.key,
+    records.filter((record) => record.source === target.key),
+  );
+}
+
 function buildSourceGroups(records: LogRecord[]): SourceGroup[] {
   const groups = new Map<string, SourceGroup>();
   for (const record of records) {
@@ -305,6 +431,17 @@ function buildSourceGroups(records: LogRecord[]): SourceGroup[] {
       records: group.records.sort(compareRecords),
     }))
     .sort((a, b) => a.group.localeCompare(b.group));
+}
+
+function buildSourcePopoutGroups(records: LogRecord[], source: string): SourceGroup[] {
+  return [
+    {
+      childSources: [source],
+      group: source,
+      label: chromeSourceLabel(source, records),
+      records: [...records].sort(compareRecords),
+    },
+  ];
 }
 
 function compareRecords(a: LogRecord, b: LogRecord): number {
@@ -404,6 +541,7 @@ function withoutSourceSetting<T>(
 
 export default function App() {
   const { displayErrorMessage, displaySuccessMessage } = useMessagesContext();
+  const [popoutTarget] = useState<PopoutTarget | null>(parsePopoutTarget);
   const [themePreference, setThemePreference] = useState<ThemePreference>(savedThemePreference);
   const [systemTheme, setSystemTheme] = useState<ResolvedThemeMode>(systemThemeMode);
   const [records, setRecords] = useState<LogRecord[]>([]);
@@ -411,7 +549,9 @@ export default function App() {
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [paused, setPaused] = useState(false);
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("merged");
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    popoutTarget == null ? "merged" : "source",
+  );
   const [sourceLayout, setSourceLayout] = useState<SourceLayout>("tiled");
   const [paneArea, setPaneArea] = useState<PaneArea>(() => ({
     height: browserHeight(),
@@ -429,10 +569,13 @@ export default function App() {
   const [excludedSources, setExcludedSources] = useState<string[]>([]);
   const [groupViewModes, setGroupViewModes] = useState<Partial<Record<string, ViewMode>>>({});
   const [groupLayouts, setGroupLayouts] = useState<Partial<Record<string, SourceLayout>>>({});
+  const [detachedTargets, setDetachedTargets] = useState<string[]>(readDetachedTargetIDs);
   const [selectedID, setSelectedID] = useState("");
   const pausedRef = useRef(paused);
   const pausedSourcesRef = useRef(pausedSources);
   const viewModeRef = useRef(viewMode);
+  const popoutWasDetachedRef = useRef(false);
+  const detachedChannelRef = useRef<BroadcastChannel | null>(null);
   const mergedLogListRef = useRef<HTMLDivElement | null>(null);
   const mergedPaneRef = useRef<HTMLElement | null>(null);
   const sourcePaneAreaRef = useRef<HTMLDivElement | null>(null);
@@ -466,6 +609,13 @@ export default function App() {
       }),
     [resolvedThemeMode],
   );
+  const isPopout = popoutTarget != null;
+  const updateDetachedTargets = (nextTargets: string[]) => {
+    const normalized = normalizeTargetIDs(nextTargets);
+    writeDetachedTargetIDs(normalized);
+    setDetachedTargets(normalized);
+    detachedChannelRef.current?.postMessage(normalized);
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -487,6 +637,53 @@ export default function App() {
       window.localStorage.setItem(themeStorageKey, themePreference);
     }
   }, [resolvedThemeMode, themePreference]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncTargets = (targets: unknown) => {
+      if (!Array.isArray(targets)) {
+        return;
+      }
+      setDetachedTargets(
+        normalizeTargetIDs(targets.filter((item): item is string => typeof item === "string")),
+      );
+    };
+    const syncFromStorage = (event: StorageEvent) => {
+      if (event.key != null && event.key !== detachedTargetsStorageKey) {
+        return;
+      }
+      setDetachedTargets(readDetachedTargetIDs());
+    };
+
+    window.addEventListener("storage", syncFromStorage);
+    if (typeof BroadcastChannel !== "undefined") {
+      const channel = new BroadcastChannel(detachedTargetsChannelName);
+      detachedChannelRef.current = channel;
+      channel.onmessage = (event: MessageEvent<unknown>) => syncTargets(event.data);
+    }
+
+    return () => {
+      window.removeEventListener("storage", syncFromStorage);
+      detachedChannelRef.current?.close();
+      detachedChannelRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (popoutTarget == null || typeof window === "undefined") {
+      return;
+    }
+    if (isTargetDetached(detachedTargets, popoutTarget)) {
+      popoutWasDetachedRef.current = true;
+      return;
+    }
+    if (popoutWasDetachedRef.current) {
+      window.setTimeout(() => window.close(), 80);
+    }
+  }, [detachedTargets, popoutTarget]);
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -559,20 +756,66 @@ export default function App() {
     return () => window.removeEventListener("resize", syncMergedPaneHeight);
   }, [records.length, viewMode]);
 
-  const sourceGroups = useMemo(() => buildSourceGroups(records), [records]);
+  const allSourceGroups = useMemo(() => buildSourceGroups(records), [records]);
+  const scopedRecords = useMemo(
+    () =>
+      records.filter((record) => {
+        const group = recordSourceGroup(record);
+        if (popoutTarget?.kind === "source") {
+          return record.source === popoutTarget.key;
+        }
+        if (popoutTarget?.kind === "group") {
+          return (
+            group === popoutTarget.key &&
+            !isTargetDetached(detachedTargets, { key: record.source, kind: "source" })
+          );
+        }
+        return (
+          !isTargetDetached(detachedTargets, { key: group, kind: "group" }) &&
+          !isTargetDetached(detachedTargets, { key: record.source, kind: "source" })
+        );
+      }),
+    [detachedTargets, popoutTarget, records],
+  );
+  const sourceGroups = useMemo(() => {
+    if (popoutTarget?.kind === "source") {
+      return buildSourcePopoutGroups(scopedRecords, popoutTarget.key);
+    }
+    return buildSourceGroups(scopedRecords);
+  }, [popoutTarget, scopedRecords]);
   const selectedGroups = useMemo(
     () => sourceGroups.filter((group) => !excludedSources.includes(group.group)),
     [excludedSources, sourceGroups],
   );
+  const detachedTargetChips = useMemo(
+    () =>
+      detachedTargets
+        .map(parseTargetID)
+        .filter((target): target is PopoutTarget => target != null)
+        .filter((target) => !sameTarget(target, popoutTarget))
+        .map((target) => ({
+          id: targetID(target),
+          label: detachedTargetLabel(target, allSourceGroups, records),
+          target,
+        })),
+    [allSourceGroups, detachedTargets, popoutTarget, records],
+  );
+  const popoutLabel = useMemo(
+    () =>
+      popoutTarget == null ? "" : detachedTargetLabel(popoutTarget, allSourceGroups, records),
+    [allSourceGroups, popoutTarget, records],
+  );
+  const projectedGroupKey = (record: LogRecord): string =>
+    popoutTarget?.kind === "source" ? popoutTarget.key : recordSourceGroup(record);
 
   const mergedRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return records.filter((record) => {
+    return scopedRecords.filter((record) => {
       const normalized = normalizeLevel(record.level);
       if (!selectedLevels.includes(normalized)) {
         return false;
       }
-      if (excludedSources.includes(recordSourceGroup(record))) {
+      if (excludedSources.includes(projectedGroupKey(record))) {
         return false;
       }
       if (!recordMatchesSearch(record, query)) {
@@ -580,7 +823,7 @@ export default function App() {
       }
       return true;
     }).sort(compareRecords);
-  }, [excludedSources, records, search, selectedLevels]);
+  }, [excludedSources, popoutTarget, scopedRecords, search, selectedLevels]);
 
   const sourcePanes = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -629,8 +872,8 @@ export default function App() {
 
   const sourceVisibleRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return records.filter((record) => {
-      const group = recordSourceGroup(record);
+    return scopedRecords.filter((record) => {
+      const group = projectedGroupKey(record);
       if (excludedSources.includes(group)) {
         return false;
       }
@@ -644,7 +887,15 @@ export default function App() {
       }
       return recordMatchesSearch(record, query);
     }).sort(compareRecords);
-  }, [excludedSources, groupViewModes, perSourceLevels, records, search, sourceGroups]);
+  }, [
+    excludedSources,
+    groupViewModes,
+    perSourceLevels,
+    popoutTarget,
+    scopedRecords,
+    search,
+    sourceGroups,
+  ]);
 
   const visibleRecords = viewMode === "merged" ? mergedRecords : sourceVisibleRecords;
   const displayedCount = visibleRecords.length;
@@ -753,6 +1004,34 @@ export default function App() {
     }
   };
 
+  const openPopout = (target: PopoutTarget, label: string) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set("popout", targetID(target));
+    const popup = window.open(
+      url.toString(),
+      popoutWindowName(target),
+      "popup,width=1200,height=760",
+    );
+    if (popup == null) {
+      displayErrorMessage("Popup blocked. Allow popups for DevLogBus and try again.");
+      return;
+    }
+    updateDetachedTargets(withDetachedTarget(detachedTargets, target));
+    popup.focus();
+    displaySuccessMessage(`Popped out ${label}`);
+  };
+
+  const reattachTarget = (target: PopoutTarget) => {
+    updateDetachedTargets(withoutDetachedTarget(detachedTargets, target));
+    displaySuccessMessage(`Reattached ${detachedTargetLabel(target, allSourceGroups, records)}`);
+    if (sameTarget(target, popoutTarget) && typeof window !== "undefined") {
+      window.setTimeout(() => window.close(), 80);
+    }
+  };
+
   const togglePaneLevel = (source: string, level: LogLevel) => {
     setPerSourceLevels((current) => ({
       ...current,
@@ -856,18 +1135,31 @@ export default function App() {
   return (
     <ThemeProvider theme={appTheme}>
       <CssBaseline />
-      <main className="shell" data-theme={resolvedThemeMode}>
+      <main className={`shell ${isPopout ? "popoutShell" : ""}`} data-theme={resolvedThemeMode}>
         <header className="topbar">
           <div className="brandLockup">
             <img className="brandMark" src="/devlogbus-brand.png" alt="" aria-hidden="true" />
             <div>
               <h1>DevLogBus</h1>
               <p>
-                {displayedCount} shown / {records.length} buffered
+                {displayedCount} shown / {scopedRecords.length} buffered
               </p>
             </div>
           </div>
           <div className="topbarActions">
+            {popoutTarget != null && (
+              <div className="popoutContext">
+                <span title={targetID(popoutTarget)}>Detached: {popoutLabel}</span>
+                <Button
+                  className="reattachButton"
+                  onClick={() => reattachTarget(popoutTarget)}
+                  size="small"
+                  variant="outlined"
+                >
+                  Reattach
+                </Button>
+              </div>
+            )}
             <ThemeModeControl onChange={setThemePreference} preference={themePreference} />
             <div className={`status ${connection}`}>
               <span className="dot" />
@@ -953,6 +1245,23 @@ export default function App() {
               })}
             </div>
           )}
+          {detachedTargetChips.length > 0 && (
+            <div aria-label="Detached sources" className="detachedToggles" role="group">
+              <span className="detachedLabel">Detached</span>
+              {detachedTargetChips.map((chip) => (
+                <Button
+                  className="detachedToggle"
+                  key={chip.id}
+                  onClick={() => reattachTarget(chip.target)}
+                  size="small"
+                  title={`Reattach ${chip.label}`}
+                  variant="outlined"
+                >
+                  {chip.label}
+                </Button>
+              ))}
+            </div>
+          )}
         </section>
 
         {viewMode === "merged" ? (
@@ -962,7 +1271,7 @@ export default function App() {
                 <div className="sourcePaneTitle">
                   <strong>Merged</strong>
                   <span>
-                    {mergedRecords.length} / {records.length}
+                    {mergedRecords.length} / {scopedRecords.length}
                   </span>
                 </div>
                 <div className="sourcePaneActions">
@@ -1041,6 +1350,10 @@ export default function App() {
                     pane.isGroup && pane.viewMode === "source"
                       ? pane.childPanes.reduce((total, child) => total + child.records.length, 0)
                       : pane.visibleRecords.length;
+                  const paneTarget: PopoutTarget = pane.isGroup
+                    ? { key: pane.group, kind: "group" }
+                    : { key: pane.childSources[0] ?? pane.group, kind: "source" };
+                  const canPopOutPane = !sameTarget(paneTarget, popoutTarget);
                   return (
                     <section
                       className={`sourcePane ${pane.isGroup ? "groupPane" : ""}`}
@@ -1129,7 +1442,11 @@ export default function App() {
                               void expungeRecords(pane.childSources[0] ?? pane.group);
                             }}
                             onPauseChange={(enabled) => toggleSourcePause(pane.scopeKey, enabled)}
+                            onPopOut={
+                              canPopOutPane ? () => openPopout(paneTarget, pane.label) : undefined
+                            }
                             paused={isPaused}
+                            popOutLabel={pane.isGroup ? "Pop Out Group" : "Pop Out Source"}
                           />
                         </div>
                       </header>
@@ -1145,6 +1462,11 @@ export default function App() {
                           {pane.childPanes.map((child) => {
                             const childDetails = sourceLineDetails(detailSources, child.scopeKey);
                             const childPaused = sourcePaused(pausedSources, child.scopeKey);
+                            const childTarget: PopoutTarget = {
+                              key: child.source,
+                              kind: "source",
+                            };
+                            const canPopOutChild = !sameTarget(childTarget, popoutTarget);
                             return (
                               <section className="nestedSourcePane" key={child.source}>
                                 <header className="nestedSourceHeader">
@@ -1178,7 +1500,13 @@ export default function App() {
                                       onPauseChange={(enabled) =>
                                         toggleSourcePause(child.scopeKey, enabled)
                                       }
+                                      onPopOut={
+                                        canPopOutChild
+                                          ? () => openPopout(childTarget, child.label)
+                                          : undefined
+                                      }
                                       paused={childPaused}
+                                      popOutLabel="Pop Out Source"
                                     />
                                   </div>
                                 </header>
@@ -1350,7 +1678,9 @@ function PaneMenu({
   onDetailsChange,
   onExpunge,
   onPauseChange,
+  onPopOut,
   paused,
+  popOutLabel = "Pop Out",
 }: {
   autoScroll: boolean;
   details: boolean;
@@ -1361,7 +1691,9 @@ function PaneMenu({
   onDetailsChange: (enabled: boolean) => void;
   onExpunge: () => void;
   onPauseChange: (enabled: boolean) => void;
+  onPopOut?: () => void;
   paused: boolean;
+  popOutLabel?: string;
 }) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const open = anchorEl != null;
@@ -1424,6 +1756,20 @@ function PaneMenu({
             size="small"
           />
         </MenuItem>
+        {onPopOut != null && (
+          <MenuItem
+            className="paneMenuItem"
+            onClick={() => {
+              onPopOut();
+              closeMenu();
+            }}
+          >
+            <ListItemIcon>
+              <OpenInNewIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{popOutLabel}</ListItemText>
+          </MenuItem>
+        )}
         <MenuItem
           className="paneMenuItem"
           onClick={() => {
