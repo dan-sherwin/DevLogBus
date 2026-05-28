@@ -45,6 +45,13 @@ them until they are reattached. A source-group popout keeps the same merged vs.
 by-source controls as the main UI, which makes it useful as a focused debugging
 surface rather than a passive viewer clone.
 
+The terminal UI uses the same grouping contract with a terminal-native
+interaction model. Top-level by-source mode renders source groups as panes;
+pressing enter on a grouped pane drills into its child sources, and escape or
+backspace returns to the parent source list. Group panes preserve the normal
+levels, pause, bottom, details, clear, and expunge controls by keying state on
+`group:<name>` and `source:<name>` scopes instead of raw source names.
+
 Chrome sources keep their stable host-based record key, but the UI can render a
 friendlier label from `tabTitle`, for example `chrome:Spacelink Cloud Portal
 (localhost:3010)`.

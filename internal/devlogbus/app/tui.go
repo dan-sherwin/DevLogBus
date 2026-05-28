@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -22,6 +23,9 @@ const (
 	tuiLayoutTiled      = "tiled"
 	tuiLayoutVertical   = "vertical"
 	tuiLayoutHorizontal = "horizontal"
+
+	tuiScopeGroup  = "group"
+	tuiScopeSource = "source"
 
 	tuiDefaultReplayPerSource = 1000
 	tuiMaxPerSource           = 1000
@@ -86,6 +90,7 @@ type (
 		viewMode     string
 		sourceLayout string
 		paneWidth    int
+		focusedGroup string
 
 		search       string
 		searchActive bool
@@ -110,8 +115,9 @@ type (
 	}
 
 	tuiExpungeTarget struct {
-		All    bool
-		Source string
+		All     bool
+		Label   string
+		Sources []string
 	}
 
 	tuiStatusMsg struct {
@@ -140,9 +146,30 @@ type (
 	}
 
 	tuiPane struct {
-		Source  string
-		Records []tuiRecord
-		Total   int
+		ChildSources []string
+		Group        string
+		Kind         string
+		Label        string
+		Records      []tuiRecord
+		Scope        string
+		Source       string
+		Total        int
+	}
+
+	tuiSourceGroup struct {
+		ChildSources []string
+		Group        string
+		Label        string
+		Records      []tuiRecord
+	}
+
+	tuiScope struct {
+		ChildSources []string
+		Group        string
+		Key          string
+		Kind         string
+		Label        string
+		Name         string
 	}
 )
 
@@ -247,8 +274,10 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.clearAll()
 			m.status = fmt.Sprintf("expunged %d records", msg.Expunged)
 		} else {
-			m.clearSource(msg.Target.Source, true)
-			m.status = fmt.Sprintf("expunged %d records for %s", msg.Expunged, msg.Target.Source)
+			for _, source := range msg.Target.Sources {
+				m.clearSource(source, true)
+			}
+			m.status = fmt.Sprintf("expunged %d records for %s", msg.Expunged, msg.Target.Label)
 		}
 		m.clampCursors()
 		return m, nil
@@ -332,7 +361,19 @@ func (m tuiModel) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "/":
 		m.searchActive = true
 	case "esc":
-		m.search = ""
+		if m.focusedGroup != "" && m.viewMode == tuiViewSource {
+			m.leaveFocusedGroup()
+		} else {
+			m.search = ""
+		}
+	case "backspace", "ctrl+h":
+		if m.focusedGroup != "" && m.viewMode == tuiViewSource {
+			m.leaveFocusedGroup()
+		}
+	case "enter":
+		if m.viewMode == tuiViewSource {
+			m.drillFocusedGroup()
+		}
 	case "m":
 		m.toggleViewMode()
 	case "a":
@@ -542,12 +583,20 @@ func expungeTUICmd(endpoint string, target tuiExpungeTarget) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		source := target.Source
 		if target.All {
-			source = ""
+			expunged, err := newClient(endpoint).Expunge(ctx, "")
+			return tuiExpungeResultMsg{Target: target, Expunged: expunged, Err: err}
 		}
-		expunged, err := newClient(endpoint).Expunge(ctx, source)
-		return tuiExpungeResultMsg{Target: target, Expunged: expunged, Err: err}
+		brokerClient := newClient(endpoint)
+		total := 0
+		for _, source := range target.Sources {
+			expunged, err := brokerClient.Expunge(ctx, source)
+			if err != nil {
+				return tuiExpungeResultMsg{Target: target, Expunged: total, Err: err}
+			}
+			total += expunged
+		}
+		return tuiExpungeResultMsg{Target: target, Expunged: total}
 	}
 }
 
@@ -559,10 +608,11 @@ func (m *tuiModel) handleRecord(record protocol.Record) {
 	if record.Source != "" {
 		m.knownSources[record.Source] = struct{}{}
 	}
+	group := recordTUISourceGroup(record)
 	if m.viewMode == tuiViewMerged && m.mergedPaused {
 		return
 	}
-	if m.sourcePaused[record.Source] {
+	if m.sourcePaused[tuiGroupKey(group)] || m.sourcePaused[tuiSourceKey(record.Source)] {
 		return
 	}
 
@@ -572,10 +622,12 @@ func (m *tuiModel) handleRecord(record protocol.Record) {
 		m.mergedCursor = len(records) - 1
 		m.mergedStart = tuiEndRecordWindowStart(len(records), m.mergedRecordRows())
 	}
-	if sourceBottomEnabled(m.sourceBottom, record.Source) {
-		records := m.visibleSourceRecords(record.Source)
-		m.sourceCursors[record.Source] = len(records) - 1
-		m.sourceStarts[record.Source] = tuiEndRecordWindowStart(len(records), m.sourceRecordRows(record.Source))
+	for _, scope := range []string{tuiGroupKey(group), tuiSourceKey(record.Source)} {
+		if sourceBottomEnabled(m.sourceBottom, scope) {
+			records := m.visibleSourceRecords(scope)
+			m.sourceCursors[scope] = len(records) - 1
+			m.sourceStarts[scope] = tuiEndRecordWindowStart(len(records), m.sourceRecordRows(scope))
+		}
 	}
 }
 
@@ -614,6 +666,101 @@ func mergeTUIRecord(records []tuiRecord, record tuiRecord) []tuiRecord {
 	return next
 }
 
+func tuiGroupKey(group string) string {
+	return tuiScopeGroup + ":" + group
+}
+
+func tuiSourceKey(source string) string {
+	return tuiScopeSource + ":" + source
+}
+
+func parseTUIScopeKey(scope string) (string, string, bool) {
+	kind, name, ok := strings.Cut(scope, ":")
+	if !ok || name == "" {
+		return "", "", false
+	}
+	if kind != tuiScopeGroup && kind != tuiScopeSource {
+		return "", "", false
+	}
+	return kind, name, true
+}
+
+func recordTUISourceGroup(record protocol.Record) string {
+	explicit := attrString(record.Attrs, "sourceGroup")
+	if explicit == "" {
+		explicit = attrString(record.Attrs, "source_group")
+	}
+	if explicit != "" {
+		return explicit
+	}
+	if strings.HasPrefix(record.Source, "chrome:") {
+		tabURL := attrString(record.Attrs, "tabURL")
+		if tabURL != "" {
+			return defaultTUIChromeSource(tabURL, record.Attrs["tabId"])
+		}
+	}
+	return record.Source
+}
+
+func defaultTUIChromeSource(rawURL string, tabID any) string {
+	parsed, err := url.Parse(rawURL)
+	if err == nil && parsed.Host != "" {
+		return "chrome:" + parsed.Host
+	}
+	switch v := tabID.(type) {
+	case string:
+		if strings.TrimSpace(v) != "" {
+			return "chrome:tab-" + strings.TrimSpace(v)
+		}
+	case fmt.Stringer:
+		if text := strings.TrimSpace(v.String()); text != "" {
+			return "chrome:tab-" + text
+		}
+	case nil:
+	default:
+		return "chrome:tab-" + fmt.Sprintf("%v", v)
+	}
+	return "chrome:tab-unknown"
+}
+
+func chromeTUISourceLabel(source string, records []tuiRecord) string {
+	if !strings.HasPrefix(source, "chrome:") {
+		return source
+	}
+	host := strings.TrimPrefix(source, "chrome:")
+	if host == "" {
+		return source
+	}
+	for _, record := range records {
+		tabURL := attrString(record.Attrs, "tabURL")
+		if tabURL == "" {
+			tabURL = attrString(record.Attrs, "url")
+		}
+		if tabURL == "" || defaultTUIChromeSource(tabURL, record.Attrs["tabId"]) != source {
+			continue
+		}
+		title := attrString(record.Attrs, "tabTitle")
+		if title == "" {
+			title = attrString(record.Attrs, "title")
+		}
+		title = strings.Join(strings.Fields(title), " ")
+		if title != "" && title != host {
+			return fmt.Sprintf("chrome:%s (%s)", title, host)
+		}
+	}
+	return source
+}
+
+func recordsForSource(records []tuiRecord, source string) []tuiRecord {
+	result := make([]tuiRecord, 0)
+	for _, record := range records {
+		if record.Source == source {
+			result = append(result, record)
+		}
+	}
+	return result
+}
+
 func (m tuiModel) renderHeader() string {
 	visible := len(m.visibleRecords())
 	contentWidth := paddedContentWidth(m.width)
@@ -636,18 +783,24 @@ func (m tuiModel) renderHeader() string {
 }
 
 func (m tuiModel) renderSourceBar() string {
-	sources := m.sources()
-	if len(sources) == 0 {
+	scopes := m.sourceScopes()
+	if len(scopes) == 0 {
 		return tuiMutedStyle.Width(m.width).Render("Sources: waiting for records")
 	}
 
 	parts := []string{"Sources:"}
 	used := runewidth.StringWidth("Sources:")
-	for i, source := range sources {
-		plainLabel := "[" + source + "]"
+	if m.focusedGroup != "" {
+		groupLabel := m.sourceGroupLabel(m.focusedGroup)
+		prefix := "{" + groupLabel + "}"
+		parts = append(parts, tuiSourceStyle.Render(prefix), ">")
+		used += 2 + runewidth.StringWidth(prefix)
+	}
+	for i, scope := range scopes {
+		plainLabel := "[" + scope.Label + "]"
 		styledLabel := tuiSourceStyle.Render(plainLabel)
-		if m.excluded[source] {
-			plainLabel = "(" + source + ")"
+		if m.excluded[scope.Key] {
+			plainLabel = "(" + scope.Label + ")"
 			styledLabel = tuiSourceOffStyle.Render(plainLabel)
 		}
 		if i == m.sourceCursor {
@@ -672,11 +825,11 @@ func (m tuiModel) renderFooter() string {
 	if m.pendingExpunge != nil {
 		target := "all broker replay records"
 		if !m.pendingExpunge.All {
-			target = "source " + m.pendingExpunge.Source
+			target = m.pendingExpunge.Label
 		}
 		return tuiFooterStyle.Render(fitText("Confirm expunge "+target+"? y/n", contentWidth))
 	}
-	keys := "q quit  / search  m mode  a layout  tab focus  [] source  s include  1-4 levels  p pause  b bottom  d details  c clear  x expunge  +/- width"
+	keys := "q quit  / search  m mode  a layout  enter drill  esc/back out  tab focus  [] source  s include  1-4 levels  p pause  b bottom  d details  c clear  x expunge  +/- width"
 	if m.errText != "" {
 		keys = m.status + ": " + m.errText + " | " + keys
 	} else if m.status != "" {
@@ -839,20 +992,24 @@ func (m tuiModel) renderTiledPanes(panes []tuiPane, width int, height int) strin
 }
 
 func (m tuiModel) renderSourcePane(pane tuiPane, width int, height int) string {
-	active := m.focusedSource() == pane.Source && !m.excluded[pane.Source]
-	levels := m.levelsForSource(pane.Source)
+	active := m.focusedSource() == pane.Scope && !m.excluded[pane.Scope]
+	levels := m.levelsForSource(pane.Scope)
+	label := pane.Label
+	if pane.Kind == tuiScopeGroup && len(pane.ChildSources) > 1 {
+		label = fmt.Sprintf("%s  %d src", label, len(pane.ChildSources))
+	}
 	title := fmt.Sprintf(
 		"%s %d/%d  %s P:%s B:%s D:%s",
-		pane.Source,
+		label,
 		len(pane.Records),
 		pane.Total,
 		levelLabel(levels),
-		boolLabel(m.sourcePaused[pane.Source]),
-		boolLabel(sourceBottomEnabled(m.sourceBottom, pane.Source)),
-		boolLabel(m.sourceDetails[pane.Source]),
+		boolLabel(m.sourcePaused[pane.Scope]),
+		boolLabel(sourceBottomEnabled(m.sourceBottom, pane.Scope)),
+		boolLabel(m.sourceDetails[pane.Scope]),
 	)
-	cursor := m.sourceCursors[pane.Source]
-	lines := m.renderRecordWindow(pane.Records, cursor, m.sourceStarts[pane.Source], width-4, tuiPanelRecordRows(height), false, m.sourceDetails[pane.Source])
+	cursor := m.sourceCursors[pane.Scope]
+	lines := m.renderRecordWindow(pane.Records, cursor, m.sourceStarts[pane.Scope], width-4, tuiPanelRecordRows(height), pane.Kind == tuiScopeGroup, m.sourceDetails[pane.Scope])
 	return renderTUIPanel(title, lines, width, height, active)
 }
 
@@ -941,7 +1098,7 @@ func renderTUIRecordLine(record tuiRecord, width int, includeSource bool, detail
 		fmt.Sprintf("%-5s", protocol.NormalizeLevel(record.Level)),
 	}
 	if includeSource {
-		parts = append(parts, fitText(record.Source, 20))
+		parts = append(parts, fitText(chromeTUISourceLabel(record.Source, []tuiRecord{record}), 20))
 	}
 	parts = append(parts, record.Message+attrs)
 	line := fitText(strings.Join(parts, " "), width)
@@ -962,6 +1119,7 @@ func (m tuiModel) renderDetail(width int, height int) string {
 		"level:  " + protocol.NormalizeLevel(record.Level),
 		"time:   " + record.Time.Format("2006-01-02 15:04:05.000"),
 		"source: " + record.Source,
+		"group:  " + recordTUISourceGroup(record.Record),
 		"id:     " + record.ID,
 		"msg:    " + record.Message,
 	}
@@ -994,7 +1152,7 @@ func (m tuiModel) visibleMergedRecords() []tuiRecord {
 		if !m.mergedLevels[protocol.NormalizeLevel(record.Level)] {
 			continue
 		}
-		if m.excluded[record.Source] {
+		if m.excluded[tuiGroupKey(recordTUISourceGroup(record.Record))] || m.excluded[tuiSourceKey(record.Source)] {
 			continue
 		}
 		if !recordMatchesTUISearch(record, query) {
@@ -1005,12 +1163,23 @@ func (m tuiModel) visibleMergedRecords() []tuiRecord {
 	return records
 }
 
-func (m tuiModel) visibleSourceRecords(source string) []tuiRecord {
+func (m tuiModel) visibleSourceRecords(scope string) []tuiRecord {
 	query := strings.ToLower(strings.TrimSpace(m.search))
-	levels := m.levelsForSource(source)
+	kind, name, ok := parseTUIScopeKey(scope)
+	if !ok {
+		return nil
+	}
+	levels := m.levelsForSource(scope)
 	records := make([]tuiRecord, 0)
 	for _, record := range m.records {
-		if record.Source != source {
+		group := recordTUISourceGroup(record.Record)
+		if kind == tuiScopeGroup && group != name {
+			continue
+		}
+		if kind == tuiScopeSource && record.Source != name {
+			continue
+		}
+		if m.excluded[tuiGroupKey(group)] || m.excluded[tuiSourceKey(record.Source)] {
 			continue
 		}
 		if !levels[protocol.NormalizeLevel(record.Level)] {
@@ -1025,22 +1194,21 @@ func (m tuiModel) visibleSourceRecords(source string) []tuiRecord {
 }
 
 func (m tuiModel) sourcePanes() []tuiPane {
-	sources := m.sources()
-	panes := make([]tuiPane, 0, len(sources))
-	for _, source := range sources {
-		if m.excluded[source] {
+	scopes := m.sourceScopes()
+	panes := make([]tuiPane, 0, len(scopes))
+	for _, scope := range scopes {
+		if m.excluded[scope.Key] {
 			continue
 		}
-		total := 0
-		for _, record := range m.records {
-			if record.Source == source {
-				total++
-			}
-		}
 		panes = append(panes, tuiPane{
-			Source:  source,
-			Records: m.visibleSourceRecords(source),
-			Total:   total,
+			ChildSources: scope.ChildSources,
+			Group:        scope.Group,
+			Kind:         scope.Kind,
+			Label:        scope.Label,
+			Records:      m.visibleSourceRecords(scope.Key),
+			Scope:        scope.Key,
+			Source:       scope.Name,
+			Total:        m.scopeTotal(scope.Key),
 		})
 	}
 	return panes
@@ -1048,15 +1216,15 @@ func (m tuiModel) sourcePanes() []tuiPane {
 
 func (m tuiModel) selectedRecord() *tuiRecord {
 	if m.viewMode == tuiViewSource {
-		source := m.focusedSource()
-		if source == "" || m.excluded[source] {
+		scope := m.focusedSource()
+		if scope == "" || m.excluded[scope] {
 			return nil
 		}
-		records := m.visibleSourceRecords(source)
+		records := m.visibleSourceRecords(scope)
 		if len(records) == 0 {
 			return nil
 		}
-		cursor := clampInt(m.sourceCursors[source], 0, len(records)-1)
+		cursor := clampInt(m.sourceCursors[scope], 0, len(records)-1)
 		return &records[cursor]
 	}
 
@@ -1068,40 +1236,165 @@ func (m tuiModel) selectedRecord() *tuiRecord {
 	return &records[cursor]
 }
 
-func (m tuiModel) sources() []string {
-	set := map[string]struct{}{}
-	for source := range m.knownSources {
-		if source != "" {
-			set[source] = struct{}{}
-		}
-	}
+func (m tuiModel) sourceGroups() []tuiSourceGroup {
+	groups := map[string]*tuiSourceGroup{}
+	childSets := map[string]map[string]struct{}{}
+	seenSources := map[string]struct{}{}
 	for _, record := range m.records {
+		groupName := recordTUISourceGroup(record.Record)
+		group := groups[groupName]
+		if group == nil {
+			group = &tuiSourceGroup{Group: groupName, Label: groupName}
+			groups[groupName] = group
+		}
+		group.Records = append(group.Records, record)
 		if record.Source != "" {
-			set[record.Source] = struct{}{}
+			seenSources[record.Source] = struct{}{}
+			if childSets[groupName] == nil {
+				childSets[groupName] = map[string]struct{}{}
+			}
+			childSets[groupName][record.Source] = struct{}{}
 		}
 	}
-	sources := make([]string, 0, len(set))
-	for source := range set {
-		sources = append(sources, source)
+	for source := range m.knownSources {
+		if source == "" {
+			continue
+		}
+		if _, ok := seenSources[source]; ok {
+			continue
+		}
+		groups[source] = &tuiSourceGroup{
+			ChildSources: []string{source},
+			Group:        source,
+			Label:        source,
+		}
+		childSets[source] = map[string]struct{}{source: {}}
 	}
-	sort.Strings(sources)
-	return sources
+	result := make([]tuiSourceGroup, 0, len(groups))
+	for groupName, group := range groups {
+		children := make([]string, 0, len(childSets[groupName]))
+		for source := range childSets[groupName] {
+			children = append(children, source)
+		}
+		sort.Strings(children)
+		group.ChildSources = children
+		group.Label = chromeTUISourceLabel(group.Group, group.Records)
+		result = append(result, *group)
+	}
+	sort.Slice(result, func(i int, j int) bool {
+		return result[i].Group < result[j].Group
+	})
+	return result
+}
+
+func (m tuiModel) sourceScopes() []tuiScope {
+	groups := m.sourceGroups()
+	if m.focusedGroup != "" {
+		for _, group := range groups {
+			if group.Group != m.focusedGroup {
+				continue
+			}
+			scopes := make([]tuiScope, 0, len(group.ChildSources))
+			for _, source := range group.ChildSources {
+				records := recordsForSource(group.Records, source)
+				scopes = append(scopes, tuiScope{
+					Group: group.Group,
+					Key:   tuiSourceKey(source),
+					Kind:  tuiScopeSource,
+					Label: chromeTUISourceLabel(source, records),
+					Name:  source,
+				})
+			}
+			return scopes
+		}
+		return nil
+	}
+
+	scopes := make([]tuiScope, 0, len(groups))
+	for _, group := range groups {
+		scope := tuiScope{
+			ChildSources: group.ChildSources,
+			Group:        group.Group,
+			Key:          tuiGroupKey(group.Group),
+			Kind:         tuiScopeGroup,
+			Label:        group.Label,
+			Name:         group.Group,
+		}
+		if len(group.ChildSources) == 1 {
+			source := group.ChildSources[0]
+			scope.Key = tuiSourceKey(source)
+			scope.Kind = tuiScopeSource
+			scope.Label = chromeTUISourceLabel(source, recordsForSource(group.Records, source))
+			scope.Name = source
+		}
+		scopes = append(scopes, scope)
+	}
+	return scopes
+}
+
+func (m tuiModel) sourceGroupLabel(groupName string) string {
+	for _, group := range m.sourceGroups() {
+		if group.Group == groupName {
+			return group.Label
+		}
+	}
+	return groupName
+}
+
+func (m tuiModel) hasSourceGroup(groupName string) bool {
+	for _, group := range m.sourceGroups() {
+		if group.Group == groupName {
+			return true
+		}
+	}
+	return false
+}
+
+func (m tuiModel) scopeTotal(scope string) int {
+	kind, name, ok := parseTUIScopeKey(scope)
+	if !ok {
+		return 0
+	}
+	total := 0
+	for _, record := range m.records {
+		group := recordTUISourceGroup(record.Record)
+		if kind == tuiScopeGroup && group != name {
+			continue
+		}
+		if kind == tuiScopeSource && record.Source != name {
+			continue
+		}
+		if m.excluded[tuiGroupKey(group)] || m.excluded[tuiSourceKey(record.Source)] {
+			continue
+		}
+		total++
+	}
+	return total
 }
 
 func (m tuiModel) focusedSource() string {
-	sources := m.sources()
-	if len(sources) == 0 {
+	scopes := m.sourceScopes()
+	if len(scopes) == 0 {
 		return ""
 	}
-	cursor := clampInt(m.sourceCursor, 0, len(sources)-1)
-	return sources[cursor]
+	cursor := clampInt(m.sourceCursor, 0, len(scopes)-1)
+	return scopes[cursor].Key
 }
 
-func (m *tuiModel) levelsForSource(source string) map[string]bool {
-	levels := m.perSourceLevel[source]
+func (m tuiModel) focusedScope() (tuiScope, bool) {
+	scopes := m.sourceScopes()
+	if len(scopes) == 0 {
+		return tuiScope{}, false
+	}
+	cursor := clampInt(m.sourceCursor, 0, len(scopes)-1)
+	return scopes[cursor], true
+}
+
+func (m *tuiModel) levelsForSource(scope string) map[string]bool {
+	levels := m.perSourceLevel[scope]
 	if levels == nil {
 		levels = defaultTUILevels()
-		m.perSourceLevel[source] = levels
+		m.perSourceLevel[scope] = levels
 	}
 	return levels
 }
@@ -1124,21 +1417,45 @@ func (m *tuiModel) cycleLayout() {
 	m.sourceLayout = tuiLayoutTiled
 }
 
+func (m *tuiModel) drillFocusedGroup() {
+	scope, ok := m.focusedScope()
+	if !ok || scope.Kind != tuiScopeGroup || len(scope.ChildSources) <= 1 {
+		return
+	}
+	m.focusedGroup = scope.Group
+	m.sourceCursor = 0
+}
+
+func (m *tuiModel) leaveFocusedGroup() {
+	if m.focusedGroup == "" {
+		return
+	}
+	group := m.focusedGroup
+	m.focusedGroup = ""
+	m.sourceCursor = 0
+	for i, scope := range m.sourceScopes() {
+		if scope.Group == group {
+			m.sourceCursor = i
+			return
+		}
+	}
+}
+
 func (m *tuiModel) moveSourceCursor(delta int) {
-	sources := m.sources()
-	if len(sources) == 0 {
+	scopes := m.sourceScopes()
+	if len(scopes) == 0 {
 		m.sourceCursor = 0
 		return
 	}
-	m.sourceCursor = (m.sourceCursor + delta + len(sources)) % len(sources)
+	m.sourceCursor = (m.sourceCursor + delta + len(scopes)) % len(scopes)
 }
 
 func (m *tuiModel) nextIncludedSource(delta int) {
-	sources := m.sources()
-	if len(sources) == 0 {
+	scopes := m.sourceScopes()
+	if len(scopes) == 0 {
 		return
 	}
-	for i := 0; i < len(sources); i++ {
+	for i := 0; i < len(scopes); i++ {
 		m.moveSourceCursor(delta)
 		if !m.excluded[m.focusedSource()] {
 			return
@@ -1148,20 +1465,20 @@ func (m *tuiModel) nextIncludedSource(delta int) {
 
 func (m *tuiModel) moveRecordCursor(delta int) {
 	if m.viewMode == tuiViewSource {
-		source := m.focusedSource()
-		if source == "" {
+		scope := m.focusedSource()
+		if scope == "" {
 			return
 		}
-		records := m.visibleSourceRecords(source)
-		m.sourceCursors[source] = clampInt(m.sourceCursors[source]+delta, 0, len(records)-1)
-		m.sourceStarts[source] = tuiKeepCursorVisible(
+		records := m.visibleSourceRecords(scope)
+		m.sourceCursors[scope] = clampInt(m.sourceCursors[scope]+delta, 0, len(records)-1)
+		m.sourceStarts[scope] = tuiKeepCursorVisible(
 			len(records),
-			m.sourceCursors[source],
-			m.sourceStarts[source],
-			m.sourceRecordRows(source),
+			m.sourceCursors[scope],
+			m.sourceStarts[scope],
+			m.sourceRecordRows(scope),
 		)
 		if delta != 0 {
-			m.sourceBottom[source] = false
+			m.sourceBottom[scope] = false
 		}
 		return
 	}
@@ -1183,19 +1500,19 @@ func (m *tuiModel) pageRecordCursor(direction int) {
 		return
 	}
 	if m.viewMode == tuiViewSource {
-		source := m.focusedSource()
-		if source == "" {
+		scope := m.focusedSource()
+		if scope == "" {
 			return
 		}
-		records := m.visibleSourceRecords(source)
-		m.sourceCursors[source], m.sourceStarts[source] = tuiPageRecordWindow(
+		records := m.visibleSourceRecords(scope)
+		m.sourceCursors[scope], m.sourceStarts[scope] = tuiPageRecordWindow(
 			len(records),
-			m.sourceCursors[source],
-			m.sourceStarts[source],
-			m.sourceRecordRows(source),
+			m.sourceCursors[scope],
+			m.sourceStarts[scope],
+			m.sourceRecordRows(scope),
 			direction,
 		)
-		m.sourceBottom[source] = false
+		m.sourceBottom[scope] = false
 		return
 	}
 
@@ -1212,10 +1529,10 @@ func (m *tuiModel) pageRecordCursor(direction int) {
 
 func (m *tuiModel) moveRecordCursorToStart() {
 	if m.viewMode == tuiViewSource {
-		source := m.focusedSource()
-		m.sourceCursors[source] = 0
-		m.sourceStarts[source] = 0
-		m.sourceBottom[source] = false
+		scope := m.focusedSource()
+		m.sourceCursors[scope] = 0
+		m.sourceStarts[scope] = 0
+		m.sourceBottom[scope] = false
 		return
 	}
 	m.mergedCursor = 0
@@ -1225,11 +1542,11 @@ func (m *tuiModel) moveRecordCursorToStart() {
 
 func (m *tuiModel) moveRecordCursorToEnd() {
 	if m.viewMode == tuiViewSource {
-		source := m.focusedSource()
-		records := m.visibleSourceRecords(source)
-		m.sourceCursors[source] = len(records) - 1
-		m.sourceStarts[source] = tuiEndRecordWindowStart(len(records), m.sourceRecordRows(source))
-		m.sourceBottom[source] = true
+		scope := m.focusedSource()
+		records := m.visibleSourceRecords(scope)
+		m.sourceCursors[scope] = len(records) - 1
+		m.sourceStarts[scope] = tuiEndRecordWindowStart(len(records), m.sourceRecordRows(scope))
+		m.sourceBottom[scope] = true
 		return
 	}
 	records := m.visibleMergedRecords()
@@ -1240,29 +1557,29 @@ func (m *tuiModel) moveRecordCursorToEnd() {
 
 func (m *tuiModel) toggleLevel(level string) {
 	if m.viewMode == tuiViewSource {
-		source := m.focusedSource()
-		if source == "" {
+		scope := m.focusedSource()
+		if scope == "" {
 			return
 		}
-		toggleTUILevel(m.levelsForSource(source), level)
+		toggleTUILevel(m.levelsForSource(scope), level)
 		return
 	}
 	toggleTUILevel(m.mergedLevels, level)
 }
 
 func (m *tuiModel) toggleFocusedSource() {
-	source := m.focusedSource()
-	if source == "" {
+	scope := m.focusedSource()
+	if scope == "" {
 		return
 	}
-	m.excluded[source] = !m.excluded[source]
+	m.excluded[scope] = !m.excluded[scope]
 }
 
 func (m *tuiModel) togglePause() {
 	if m.viewMode == tuiViewSource {
-		source := m.focusedSource()
-		if source != "" {
-			m.sourcePaused[source] = !m.sourcePaused[source]
+		scope := m.focusedSource()
+		if scope != "" {
+			m.sourcePaused[scope] = !m.sourcePaused[scope]
 		}
 		return
 	}
@@ -1271,10 +1588,10 @@ func (m *tuiModel) togglePause() {
 
 func (m *tuiModel) toggleBottom() {
 	if m.viewMode == tuiViewSource {
-		source := m.focusedSource()
-		if source != "" {
-			m.sourceBottom[source] = !sourceBottomEnabled(m.sourceBottom, source)
-			if m.sourceBottom[source] {
+		scope := m.focusedSource()
+		if scope != "" {
+			m.sourceBottom[scope] = !sourceBottomEnabled(m.sourceBottom, scope)
+			if m.sourceBottom[scope] {
 				m.moveRecordCursorToEnd()
 			}
 		}
@@ -1288,9 +1605,9 @@ func (m *tuiModel) toggleBottom() {
 
 func (m *tuiModel) toggleDetails() {
 	if m.viewMode == tuiViewSource {
-		source := m.focusedSource()
-		if source != "" {
-			m.sourceDetails[source] = !m.sourceDetails[source]
+		scope := m.focusedSource()
+		if scope != "" {
+			m.sourceDetails[scope] = !m.sourceDetails[scope]
 		}
 		return
 	}
@@ -1299,9 +1616,14 @@ func (m *tuiModel) toggleDetails() {
 
 func (m *tuiModel) clearFocused() {
 	if m.viewMode == tuiViewSource {
-		source := m.focusedSource()
-		if source != "" {
-			m.clearSource(source, false)
+		scope, ok := m.focusedScope()
+		if !ok {
+			return
+		}
+		if scope.Kind == tuiScopeGroup {
+			m.clearGroup(scope.Group, false)
+		} else {
+			m.clearSource(scope.Name, false)
 		}
 		return
 	}
@@ -1310,14 +1632,18 @@ func (m *tuiModel) clearFocused() {
 
 func (m *tuiModel) queueExpunge() {
 	if m.viewMode == tuiViewSource {
-		source := m.focusedSource()
-		if source == "" {
+		scope, ok := m.focusedScope()
+		if !ok {
 			return
 		}
-		m.pendingExpunge = &tuiExpungeTarget{Source: source}
+		sources := scope.ChildSources
+		if scope.Kind == tuiScopeSource {
+			sources = []string{scope.Name}
+		}
+		m.pendingExpunge = &tuiExpungeTarget{Label: scope.Label, Sources: append([]string(nil), sources...)}
 		return
 	}
-	m.pendingExpunge = &tuiExpungeTarget{All: true}
+	m.pendingExpunge = &tuiExpungeTarget{All: true, Label: "all broker replay records"}
 }
 
 func (m *tuiModel) clearAll() {
@@ -1328,11 +1654,13 @@ func (m *tuiModel) clearAll() {
 	m.sourceCursors = map[string]int{}
 	m.sourceStarts = map[string]int{}
 	m.sourceCursor = 0
+	m.focusedGroup = ""
 	m.mergedCursor = 0
 	m.mergedStart = 0
 }
 
 func (m *tuiModel) clearSource(source string, forget bool) {
+	scope := tuiSourceKey(source)
 	next := m.records[:0]
 	for _, record := range m.records {
 		if record.Source != source {
@@ -1340,41 +1668,79 @@ func (m *tuiModel) clearSource(source string, forget bool) {
 		}
 	}
 	m.records = next
-	m.sourceCursors[source] = 0
+	m.sourceCursors[scope] = 0
 	if forget {
 		delete(m.knownSources, source)
-		delete(m.excluded, source)
-		delete(m.perSourceLevel, source)
-		delete(m.sourcePaused, source)
-		delete(m.sourceBottom, source)
-		delete(m.sourceDetails, source)
-		delete(m.sourceCursors, source)
-		delete(m.sourceStarts, source)
+		delete(m.excluded, scope)
+		delete(m.perSourceLevel, scope)
+		delete(m.sourcePaused, scope)
+		delete(m.sourceBottom, scope)
+		delete(m.sourceDetails, scope)
+		delete(m.sourceCursors, scope)
+		delete(m.sourceStarts, scope)
 	} else if source != "" {
 		m.knownSources[source] = struct{}{}
 	}
 }
 
+func (m *tuiModel) clearGroup(group string, forget bool) {
+	scope := tuiGroupKey(group)
+	next := m.records[:0]
+	childSources := map[string]struct{}{}
+	for _, record := range m.records {
+		if recordTUISourceGroup(record.Record) == group {
+			if record.Source != "" {
+				childSources[record.Source] = struct{}{}
+			}
+			continue
+		}
+		next = append(next, record)
+	}
+	m.records = next
+	m.sourceCursors[scope] = 0
+	if forget {
+		delete(m.excluded, scope)
+		delete(m.perSourceLevel, scope)
+		delete(m.sourcePaused, scope)
+		delete(m.sourceBottom, scope)
+		delete(m.sourceDetails, scope)
+		delete(m.sourceCursors, scope)
+		delete(m.sourceStarts, scope)
+	}
+	for source := range childSources {
+		delete(m.knownSources, source)
+	}
+	if m.focusedGroup == group {
+		m.leaveFocusedGroup()
+	}
+}
+
 func (m *tuiModel) clampCursors() {
-	sources := m.sources()
-	if len(sources) == 0 {
+	if m.focusedGroup != "" && !m.hasSourceGroup(m.focusedGroup) {
+		m.focusedGroup = ""
+	}
+	scopes := m.sourceScopes()
+	if len(scopes) == 0 {
 		m.sourceCursor = 0
 	} else {
-		m.sourceCursor = clampInt(m.sourceCursor, 0, len(sources)-1)
+		m.sourceCursor = clampInt(m.sourceCursor, 0, len(scopes)-1)
 	}
 	merged := m.visibleMergedRecords()
 	m.mergedCursor = clampInt(m.mergedCursor, 0, len(merged)-1)
 	m.mergedStart = tuiKeepCursorVisible(len(merged), m.mergedCursor, m.mergedStart, m.mergedRecordRows())
-	for _, source := range sources {
-		records := m.visibleSourceRecords(source)
-		m.sourceCursors[source] = clampInt(m.sourceCursors[source], 0, len(records)-1)
-		m.sourceStarts[source] = tuiKeepCursorVisible(len(records), m.sourceCursors[source], m.sourceStarts[source], m.sourceRecordRows(source))
+	for _, scope := range scopes {
+		records := m.visibleSourceRecords(scope.Key)
+		m.sourceCursors[scope.Key] = clampInt(m.sourceCursors[scope.Key], 0, len(records)-1)
+		m.sourceStarts[scope.Key] = tuiKeepCursorVisible(len(records), m.sourceCursors[scope.Key], m.sourceStarts[scope.Key], m.sourceRecordRows(scope.Key))
 	}
 }
 
 func (m tuiModel) viewSummary() string {
 	if m.viewMode == tuiViewSource {
 		text := "by source/" + m.sourceLayout
+		if m.focusedGroup != "" {
+			text += " group:" + m.sourceGroupLabel(m.focusedGroup)
+		}
 		if m.sourceLayout == tuiLayoutTiled {
 			text += fmt.Sprintf(" width:%d", m.paneWidth)
 		}
@@ -1430,7 +1796,7 @@ func (m tuiModel) mergedRecordRows() int {
 	return tuiPanelRecordRows(m.mainPaneHeight())
 }
 
-func (m tuiModel) sourceRecordRows(source string) int {
+func (m tuiModel) sourceRecordRows(scope string) int {
 	mainHeight := m.mainPaneHeight()
 	panes := m.sourcePanes()
 	if len(panes) == 0 {
@@ -1439,7 +1805,7 @@ func (m tuiModel) sourceRecordRows(source string) int {
 
 	index := -1
 	for i, pane := range panes {
-		if pane.Source == source {
+		if pane.Scope == scope {
 			index = i
 			break
 		}
@@ -1594,6 +1960,7 @@ func recordMatchesTUISearch(record tuiRecord, query string) bool {
 		record.Time.Format(time.RFC3339Nano),
 		record.Level,
 		record.Source,
+		recordTUISourceGroup(record.Record),
 		record.Message,
 	}
 	for key, value := range record.Attrs {
@@ -1616,6 +1983,18 @@ func attrSummary(attrs map[string]any) string {
 		parts = append(parts, key+"="+attrValue(attrs[key]))
 	}
 	return strings.Join(parts, " ")
+}
+
+func attrString(attrs map[string]any, key string) string {
+	value, ok := attrs[key]
+	if !ok {
+		return ""
+	}
+	text, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(text)
 }
 
 func attrValue(value any) string {

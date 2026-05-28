@@ -94,6 +94,154 @@ func TestTUIReplayLoadedMessageAppliesRecordsAsBatch(t *testing.T) {
 	}
 }
 
+func TestTUISourceGroupsDrillIntoChildSources(t *testing.T) {
+	m := newTUIModel("127.0.0.1:7422", 100, nil, nil)
+	m.width = 120
+	m.height = 30
+	m.viewMode = tuiViewSource
+	m.initialReplayLoaded = true
+
+	for _, record := range []protocol.Record{
+		{
+			ID:      "client",
+			Time:    time.Unix(0, 0),
+			Level:   "INFO",
+			Source:  "chrome:localhost:3010",
+			Message: "client requested notifications",
+			Attrs: map[string]any{
+				"sourceGroup": "chrome:localhost:3010",
+				"tabTitle":    "Spacelink Cloud Portal",
+				"tabURL":      "http://localhost:3010/notifications",
+			},
+		},
+		{
+			ID:      "network",
+			Time:    time.Unix(0, int64(time.Millisecond)),
+			Level:   "WARN",
+			Source:  "chrome:api.localhost:7423",
+			Message: "GET /api/notifications returned 500",
+			Attrs: map[string]any{
+				"sourceGroup": "chrome:localhost:3010",
+			},
+		},
+		{
+			ID:      "server",
+			Time:    time.Unix(0, int64(2*time.Millisecond)),
+			Level:   "INFO",
+			Source:  "ticket_management_svc",
+			Message: "server handled request",
+		},
+	} {
+		m.handleRecord(record)
+	}
+
+	scopes := m.sourceScopes()
+	if len(scopes) != 2 {
+		t.Fatalf("top-level scopes = %d, want 2", len(scopes))
+	}
+	if scopes[0].Kind != tuiScopeGroup || scopes[0].Key != tuiGroupKey("chrome:localhost:3010") {
+		t.Fatalf("first scope = %#v, want chrome group", scopes[0])
+	}
+	if got := len(scopes[0].ChildSources); got != 2 {
+		t.Fatalf("chrome child source count = %d, want 2", got)
+	}
+	if scopes[0].Label != "chrome:Spacelink Cloud Portal (localhost:3010)" {
+		t.Fatalf("chrome label = %q", scopes[0].Label)
+	}
+
+	panes := m.sourcePanes()
+	if len(panes) != 2 || panes[0].Kind != tuiScopeGroup || panes[0].Total != 2 {
+		t.Fatalf("top-level panes = %#v, want grouped chrome pane plus server pane", panes)
+	}
+
+	m.drillFocusedGroup()
+	if m.focusedGroup != "chrome:localhost:3010" {
+		t.Fatalf("focusedGroup = %q, want chrome group", m.focusedGroup)
+	}
+	childScopes := m.sourceScopes()
+	if len(childScopes) != 2 {
+		t.Fatalf("child scopes = %d, want 2", len(childScopes))
+	}
+	for _, scope := range childScopes {
+		if scope.Kind != tuiScopeSource {
+			t.Fatalf("child scope kind = %q, want source", scope.Kind)
+		}
+	}
+	if childScopes[0].Key != tuiSourceKey("chrome:api.localhost:7423") {
+		t.Fatalf("first child scope = %#v", childScopes[0])
+	}
+
+	m.leaveFocusedGroup()
+	if m.focusedGroup != "" {
+		t.Fatalf("focusedGroup after leave = %q, want empty", m.focusedGroup)
+	}
+	if got := m.focusedSource(); got != tuiGroupKey("chrome:localhost:3010") {
+		t.Fatalf("focused source after leave = %q, want chrome group", got)
+	}
+}
+
+func TestTUIGroupExclusionFiltersMergedRecords(t *testing.T) {
+	m := newTUIModel("127.0.0.1:7422", 100, nil, nil)
+	m.handleRecord(protocol.Record{
+		ID:      "client",
+		Time:    time.Unix(0, 0),
+		Level:   "INFO",
+		Source:  "chrome:localhost:3010",
+		Message: "client requested notifications",
+		Attrs: map[string]any{
+			"sourceGroup": "chrome:localhost:3010",
+		},
+	})
+	m.handleRecord(protocol.Record{
+		ID:      "server",
+		Time:    time.Unix(0, int64(time.Millisecond)),
+		Level:   "INFO",
+		Source:  "ticket_management_svc",
+		Message: "server handled request",
+	})
+
+	m.excluded[tuiGroupKey("chrome:localhost:3010")] = true
+	records := m.visibleMergedRecords()
+	if len(records) != 1 || records[0].Source != "ticket_management_svc" {
+		t.Fatalf("visible records = %#v, want only server record", records)
+	}
+}
+
+func TestTUIGroupExpungeQueuesChildSources(t *testing.T) {
+	m := newTUIModel("127.0.0.1:7422", 100, nil, nil)
+	m.viewMode = tuiViewSource
+	m.handleRecord(protocol.Record{
+		ID:      "client",
+		Time:    time.Unix(0, 0),
+		Level:   "INFO",
+		Source:  "chrome:localhost:3010",
+		Message: "client requested notifications",
+		Attrs: map[string]any{
+			"sourceGroup": "chrome:localhost:3010",
+		},
+	})
+	m.handleRecord(protocol.Record{
+		ID:      "network",
+		Time:    time.Unix(0, int64(time.Millisecond)),
+		Level:   "WARN",
+		Source:  "chrome:api.localhost:7423",
+		Message: "GET /api/notifications returned 500",
+		Attrs: map[string]any{
+			"sourceGroup": "chrome:localhost:3010",
+		},
+	})
+
+	m.queueExpunge()
+	if m.pendingExpunge == nil {
+		t.Fatalf("pendingExpunge = nil, want grouped target")
+	}
+	got := strings.Join(m.pendingExpunge.Sources, ",")
+	want := "chrome:api.localhost:7423,chrome:localhost:3010"
+	if got != want {
+		t.Fatalf("expunge sources = %q, want %q", got, want)
+	}
+}
+
 func TestTUIRecordWindowScrollsAtPaneEdges(t *testing.T) {
 	const total = 20
 	const height = 5
