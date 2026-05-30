@@ -1,8 +1,13 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Badge,
   Box,
   Button,
   CssBaseline,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   ListItemIcon,
   ListItemText,
@@ -17,10 +22,13 @@ import {
   Typography,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
+import BlockIcon from "@mui/icons-material/Block";
 import ClearAllIcon from "@mui/icons-material/ClearAll";
 import ComputerIcon from "@mui/icons-material/Computer";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
+import HelpIcon from "@mui/icons-material/Help";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import KeyboardDoubleArrowDownIcon from "@mui/icons-material/KeyboardDoubleArrowDown";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -36,6 +44,29 @@ type SourceLayout = "tiled" | "vertical" | "horizontal";
 type ThemePreference = "system" | "light" | "dark";
 type ResolvedThemeMode = "light" | "dark";
 type PopoutKind = "group" | "source";
+type ActiveDialog = "about" | "blocked" | "help" | null;
+
+type AboutResponse = {
+  api: {
+    ok: boolean;
+  };
+  broker: {
+    echo: boolean;
+    endpoint: string;
+    httpListenAddress: string;
+    maxRecords: number;
+    tcpListenAddress: string;
+  };
+  build: {
+    appName: string;
+    buildDate: string;
+    commit: string;
+    goVersion?: string;
+    modulePath?: string;
+    moduleVersion?: string;
+    version: string;
+  };
+};
 
 type PopoutTarget = {
   key: string;
@@ -118,6 +149,8 @@ const paneWidthBounds = { min: 360, step: 20 };
 const defaultPaneWidth = 380;
 const paneHeightMin = 220;
 const themeStorageKey = "devlogbus-theme";
+const blockedSourcesStorageKey = "devlogbus-blocked-sources";
+const blockedSourcesChannelName = "devlogbus-blocked-sources";
 const detachedTargetsStorageKey = "devlogbus-detached-targets";
 const detachedTargetsChannelName = "devlogbus-detached-targets";
 const levelClass: Record<LogLevel, string> = {
@@ -355,6 +388,58 @@ function normalizeTargetIDs(ids: string[]): string[] {
   return normalized.sort();
 }
 
+function normalizeSourceNames(sources: string[]): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const source of sources) {
+    const trimmed = source.trim();
+    if (trimmed === "" || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  }
+  return normalized.sort();
+}
+
+function readBlockedSources(): string[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  try {
+    const saved = window.localStorage.getItem(blockedSourcesStorageKey);
+    if (saved == null || saved === "") {
+      return [];
+    }
+    const parsed = JSON.parse(saved) as unknown;
+    return Array.isArray(parsed)
+      ? normalizeSourceNames(parsed.filter((item): item is string => typeof item === "string"))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeBlockedSources(sources: string[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    const normalized = normalizeSourceNames(sources);
+    if (normalized.length === 0) {
+      window.localStorage.removeItem(blockedSourcesStorageKey);
+      return;
+    }
+    window.localStorage.setItem(blockedSourcesStorageKey, JSON.stringify(normalized));
+  } catch {
+    // Blocking is a viewer preference; live records continue to render if storage is unavailable.
+  }
+}
+
+function isSourceBlocked(blockedSources: string[], source: string): boolean {
+  return blockedSources.includes(source);
+}
+
 function readDetachedTargetIDs(): string[] {
   if (typeof window === "undefined") {
     return [];
@@ -560,10 +645,14 @@ function withoutSourceSetting<T>(
 export default function App() {
   const { displayErrorMessage, displaySuccessMessage } = useMessagesContext();
   const [popoutTarget] = useState<PopoutTarget | null>(parsePopoutTarget);
+  const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
+  const [about, setAbout] = useState<AboutResponse | null>(null);
+  const [aboutError, setAboutError] = useState("");
   const [themePreference, setThemePreference] = useState<ThemePreference>(savedThemePreference);
   const [systemTheme, setSystemTheme] = useState<ResolvedThemeMode>(systemThemeMode);
   const [records, setRecords] = useState<LogRecord[]>([]);
   const [knownSources, setKnownSources] = useState<string[]>([]);
+  const [blockedSources, setBlockedSources] = useState<string[]>(readBlockedSources);
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [paused, setPaused] = useState(false);
   const [search, setSearch] = useState("");
@@ -589,10 +678,12 @@ export default function App() {
   const [groupLayouts, setGroupLayouts] = useState<Partial<Record<string, SourceLayout>>>({});
   const [detachedTargets, setDetachedTargets] = useState<string[]>(readDetachedTargetIDs);
   const [selectedID, setSelectedID] = useState("");
+  const blockedSourcesRef = useRef(blockedSources);
   const pausedRef = useRef(paused);
   const pausedSourcesRef = useRef(pausedSources);
   const viewModeRef = useRef(viewMode);
   const popoutWasDetachedRef = useRef(false);
+  const blockedSourcesChannelRef = useRef<BroadcastChannel | null>(null);
   const detachedChannelRef = useRef<BroadcastChannel | null>(null);
   const mergedLogListRef = useRef<HTMLDivElement | null>(null);
   const mergedPaneRef = useRef<HTMLElement | null>(null);
@@ -633,6 +724,12 @@ export default function App() {
     writeDetachedTargetIDs(normalized);
     setDetachedTargets(normalized);
     detachedChannelRef.current?.postMessage(normalized);
+  };
+  const updateBlockedSources = (nextSources: string[]) => {
+    const normalized = normalizeSourceNames(nextSources);
+    writeBlockedSources(normalized);
+    setBlockedSources(normalized);
+    blockedSourcesChannelRef.current?.postMessage(normalized);
   };
 
   useEffect(() => {
@@ -691,6 +788,40 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncSources = (sources: unknown) => {
+      if (!Array.isArray(sources)) {
+        return;
+      }
+      setBlockedSources(
+        normalizeSourceNames(sources.filter((item): item is string => typeof item === "string")),
+      );
+    };
+    const syncFromStorage = (event: StorageEvent) => {
+      if (event.key != null && event.key !== blockedSourcesStorageKey) {
+        return;
+      }
+      setBlockedSources(readBlockedSources());
+    };
+
+    window.addEventListener("storage", syncFromStorage);
+    if (typeof BroadcastChannel !== "undefined") {
+      const channel = new BroadcastChannel(blockedSourcesChannelName);
+      blockedSourcesChannelRef.current = channel;
+      channel.onmessage = (event: MessageEvent<unknown>) => syncSources(event.data);
+    }
+
+    return () => {
+      window.removeEventListener("storage", syncFromStorage);
+      blockedSourcesChannelRef.current?.close();
+      blockedSourcesChannelRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     if (popoutTarget == null || typeof window === "undefined") {
       return;
     }
@@ -702,6 +833,16 @@ export default function App() {
       window.setTimeout(() => window.close(), 80);
     }
   }, [detachedTargets, popoutTarget]);
+
+  useEffect(() => {
+    blockedSourcesRef.current = blockedSources;
+    setRecords((current) =>
+      current.filter((record) => !isSourceBlocked(blockedSources, record.source)),
+    );
+    setKnownSources((current) =>
+      current.filter((source) => !isSourceBlocked(blockedSources, source)),
+    );
+  }, [blockedSources]);
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -716,6 +857,36 @@ export default function App() {
   }, [viewMode]);
 
   useEffect(() => {
+    if (activeDialog !== "about") {
+      return;
+    }
+    let ignore = false;
+    setAboutError("");
+    fetch(`${apiBase}/api/about`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`about failed: ${response.status}`);
+        }
+        return response.json() as Promise<AboutResponse>;
+      })
+      .then((nextAbout) => {
+        if (!ignore) {
+          setAbout(nextAbout);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load DevLogBus about data", error);
+        if (!ignore) {
+          setAbout(null);
+          setAboutError("About data unavailable");
+        }
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [activeDialog]);
+
+  useEffect(() => {
     const params = new URLSearchParams({ level: "debug" });
     const stream = new EventSource(`${apiBase}/api/stream?${params.toString()}`);
 
@@ -724,6 +895,9 @@ export default function App() {
     stream.addEventListener("record", (event) => {
       try {
         const record = JSON.parse((event as MessageEvent<string>).data) as LogRecord;
+        if (isSourceBlocked(blockedSourcesRef.current, record.source)) {
+          return;
+        }
         if (viewModeRef.current === "merged" && pausedRef.current) {
           return;
         }
@@ -774,10 +948,14 @@ export default function App() {
     return () => window.removeEventListener("resize", syncMergedPaneHeight);
   }, [records.length, viewMode]);
 
-  const allSourceGroups = useMemo(() => buildSourceGroups(records), [records]);
+  const viewerRecords = useMemo(
+    () => records.filter((record) => !isSourceBlocked(blockedSources, record.source)),
+    [blockedSources, records],
+  );
+  const allSourceGroups = useMemo(() => buildSourceGroups(viewerRecords), [viewerRecords]);
   const scopedRecords = useMemo(
     () =>
-      records.filter((record) => {
+      viewerRecords.filter((record) => {
         const group = recordSourceGroup(record);
         if (popoutTarget?.kind === "source") {
           return record.source === popoutTarget.key;
@@ -793,7 +971,7 @@ export default function App() {
           !isTargetDetached(detachedTargets, { key: record.source, kind: "source" })
         );
       }),
-    [detachedTargets, popoutTarget, records],
+    [detachedTargets, popoutTarget, viewerRecords],
   );
   const sourceGroups = useMemo(() => {
     if (popoutTarget?.kind === "source") {
@@ -813,15 +991,17 @@ export default function App() {
         .filter((target) => !sameTarget(target, popoutTarget))
         .map((target) => ({
           id: targetID(target),
-          label: detachedTargetLabel(target, allSourceGroups, records),
+          label: detachedTargetLabel(target, allSourceGroups, viewerRecords),
           target,
         })),
-    [allSourceGroups, detachedTargets, popoutTarget, records],
+    [allSourceGroups, detachedTargets, popoutTarget, viewerRecords],
   );
   const popoutLabel = useMemo(
     () =>
-      popoutTarget == null ? "" : detachedTargetLabel(popoutTarget, allSourceGroups, records),
-    [allSourceGroups, popoutTarget, records],
+      popoutTarget == null
+        ? ""
+        : detachedTargetLabel(popoutTarget, allSourceGroups, viewerRecords),
+    [allSourceGroups, popoutTarget, viewerRecords],
   );
   const projectedGroupKey = (record: LogRecord): string =>
     popoutTarget?.kind === "source" ? popoutTarget.key : recordSourceGroup(record);
@@ -1076,10 +1256,37 @@ export default function App() {
 
   const reattachTarget = (target: PopoutTarget) => {
     updateDetachedTargets(withoutDetachedTarget(detachedTargets, target));
-    displaySuccessMessage(`Reattached ${detachedTargetLabel(target, allSourceGroups, records)}`);
+    displaySuccessMessage(`Reattached ${detachedTargetLabel(target, allSourceGroups, viewerRecords)}`);
     if (sameTarget(target, popoutTarget) && typeof window !== "undefined") {
       window.setTimeout(() => window.close(), 80);
     }
+  };
+
+  const blockSource = (source: string) => {
+    const trimmed = source.trim();
+    if (trimmed === "") {
+      return;
+    }
+    updateBlockedSources([...blockedSources, trimmed]);
+    setRecords((current) => current.filter((record) => record.source !== trimmed));
+    setKnownSources((current) => current.filter((item) => item !== trimmed));
+    setExcludedSources((current) =>
+      current.filter((item) => item !== trimmed && item !== sourceKey(trimmed)),
+    );
+    setPerSourceLevels((current) => withoutSourceSetting(current, sourceKey(trimmed)));
+    setAutoScrollSources((current) => withoutSourceSetting(current, sourceKey(trimmed)));
+    setDetailSources((current) => withoutSourceSetting(current, sourceKey(trimmed)));
+    setPausedSources((current) => withoutSourceSetting(current, sourceKey(trimmed)));
+    setSelectedID((currentID) => {
+      const selectedRecord = records.find((record) => record.id === currentID);
+      return selectedRecord?.source === trimmed ? "" : currentID;
+    });
+    displaySuccessMessage(`Blocked ${trimmed}`);
+  };
+
+  const unblockSource = (source: string) => {
+    updateBlockedSources(blockedSources.filter((item) => item !== source));
+    displaySuccessMessage(`Unblocked ${source}`);
   };
 
   const togglePaneLevel = (source: string, level: LogLevel) => {
@@ -1211,6 +1418,42 @@ export default function App() {
               </div>
             )}
             <ThemeModeControl onChange={setThemePreference} preference={themePreference} />
+            <Tooltip title="Blocked sources">
+              <IconButton
+                aria-label="Blocked sources"
+                className="topbarIconButton"
+                onClick={() => setActiveDialog("blocked")}
+                size="small"
+              >
+                <Badge
+                  badgeContent={blockedSources.length}
+                  color="warning"
+                  invisible={blockedSources.length === 0}
+                >
+                  <BlockIcon fontSize="small" />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Help">
+              <IconButton
+                aria-label="Help"
+                className="topbarIconButton"
+                onClick={() => setActiveDialog("help")}
+                size="small"
+              >
+                <HelpIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="About">
+              <IconButton
+                aria-label="About"
+                className="topbarIconButton"
+                onClick={() => setActiveDialog("about")}
+                size="small"
+              >
+                <InfoOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <div className={`status ${connection}`}>
               <span className="dot" />
               broker {connection}
@@ -1485,6 +1728,11 @@ export default function App() {
                             expungeLabel={pane.isGroup ? "Expunge Group" : "Expunge"}
                             label={`${pane.label} controls`}
                             onAutoScrollChange={(enabled) => toggleAutoScroll(pane.scopeKey, enabled)}
+                            onBlock={
+                              pane.isGroup
+                                ? undefined
+                                : () => blockSource(pane.childSources[0] ?? pane.group)
+                            }
                             onClear={() =>
                               pane.isGroup
                                 ? clearGroupRecords(pane.group)
@@ -1513,21 +1761,32 @@ export default function App() {
                             role="group"
                           >
                             {pane.childSourceToggles.map((child) => (
-                              <Button
-                                aria-pressed={!child.hidden}
-                                className="childSourceToggle"
-                                key={child.source}
-                                onClick={() =>
-                                  setExcludedSources((current) =>
-                                    toggleExcludedKey(current, sourceKey(child.source)),
-                                  )
-                                }
-                                size="small"
-                                title={`${child.hidden ? "Show" : "Hide"} ${child.source}`}
-                                variant={child.hidden ? "outlined" : "contained"}
-                              >
-                                {child.label}
-                              </Button>
+                              <span className="childSourceControl" key={child.source}>
+                                <Button
+                                  aria-pressed={!child.hidden}
+                                  className="childSourceToggle"
+                                  onClick={() =>
+                                    setExcludedSources((current) =>
+                                      toggleExcludedKey(current, sourceKey(child.source)),
+                                    )
+                                  }
+                                  size="small"
+                                  title={`${child.hidden ? "Show" : "Hide"} ${child.source}`}
+                                  variant={child.hidden ? "outlined" : "contained"}
+                                >
+                                  {child.label}
+                                </Button>
+                                <Tooltip title={`Block ${child.source}`}>
+                                  <IconButton
+                                    aria-label={`Block ${child.source}`}
+                                    className="sourceBlockButton"
+                                    onClick={() => blockSource(child.source)}
+                                    size="small"
+                                  >
+                                    <BlockIcon fontSize="inherit" />
+                                  </IconButton>
+                                </Tooltip>
+                              </span>
                             ))}
                           </div>
                         )}
@@ -1568,13 +1827,17 @@ export default function App() {
                                         selected={child.levels}
                                       />
                                       <PaneMenu
-                                        autoScroll={sourceAutoScroll(autoScrollSources, child.scopeKey)}
+                                        autoScroll={sourceAutoScroll(
+                                          autoScrollSources,
+                                          child.scopeKey,
+                                        )}
                                         details={childDetails}
                                         expungeLabel="Expunge"
                                         label={`${child.label} controls`}
                                         onAutoScrollChange={(enabled) =>
                                           toggleAutoScroll(child.scopeKey, enabled)
                                         }
+                                        onBlock={() => blockSource(child.source)}
                                         onClear={() => clearSourceRecords(child.source)}
                                         onDetailsChange={(enabled) =>
                                           toggleLineDetails(child.scopeKey, enabled)
@@ -1689,7 +1952,166 @@ export default function App() {
           </section>
         )}
       </main>
+      <AboutDialog
+        about={about}
+        connection={connection}
+        error={aboutError}
+        onClose={() => setActiveDialog(null)}
+        open={activeDialog === "about"}
+      />
+      <HelpDialog onClose={() => setActiveDialog(null)} open={activeDialog === "help"} />
+      <BlockedSourcesDialog
+        blockedSources={blockedSources}
+        onClose={() => setActiveDialog(null)}
+        onUnblock={unblockSource}
+        open={activeDialog === "blocked"}
+      />
     </ThemeProvider>
+  );
+}
+
+function AboutDialog({
+  about,
+  connection,
+  error,
+  onClose,
+  open,
+}: {
+  about: AboutResponse | null;
+  connection: ConnectionState;
+  error: string;
+  onClose: () => void;
+  open: boolean;
+}) {
+  return (
+    <Dialog className="appDialog" fullWidth maxWidth="sm" onClose={onClose} open={open}>
+      <DialogTitle>About DevLogBus</DialogTitle>
+      <DialogContent>
+        {error !== "" ? (
+          <div className="dialogError">{error}</div>
+        ) : about == null ? (
+          <div className="emptyState">Loading.</div>
+        ) : (
+          <div className="aboutGrid">
+            <KeyValue label="version" value={about.build.version} />
+            <KeyValue label="commit" value={about.build.commit} />
+            <KeyValue label="build date" value={about.build.buildDate} />
+            <KeyValue label="go" value={about.build.goVersion ?? ""} />
+            <KeyValue label="module" value={about.build.modulePath ?? ""} />
+            <KeyValue label="api" value={about.api.ok ? "ok" : "offline"} />
+            <KeyValue label="stream" value={connection} />
+            <KeyValue label="endpoint" value={about.broker.endpoint} />
+            <KeyValue label="http" value={about.broker.httpListenAddress} />
+            <KeyValue label="tcp" value={about.broker.tcpListenAddress || "disabled"} />
+            <KeyValue label="records/source" value={String(about.broker.maxRecords)} />
+            <KeyValue label="echo" value={about.broker.echo ? "on" : "off"} />
+          </div>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} variant="contained">
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function HelpDialog({ onClose, open }: { onClose: () => void; open: boolean }) {
+  return (
+    <Dialog className="appDialog" fullWidth maxWidth="md" onClose={onClose} open={open}>
+      <DialogTitle>Help</DialogTitle>
+      <DialogContent>
+        <div className="helpGrid">
+          <HelpSection
+            title="Views"
+            text="Merged shows one filtered stream. By source splits records into source panes, and Chrome tab groups can be viewed merged or as child sources."
+          />
+          <HelpSection
+            title="Filters"
+            text="Search filters message, source, time, level, and fields. Level buttons are per pane, so one noisy pane can be narrowed without changing the rest."
+          />
+          <HelpSection
+            title="Hide vs Block"
+            text="Hide is temporary pane visibility. Block is persisted source suppression until the source is unblocked from the blocked-source list."
+          />
+          <HelpSection
+            title="Popout"
+            text="Popout detaches a group or source into its own window and removes it from the parent view until Reattach is used."
+          />
+          <HelpSection
+            title="Clear and Expunge"
+            text="Clear removes records from the viewer only. Expunge deletes matching replay records from the daemon buffer."
+          />
+          <HelpSection
+            title="Chrome Browser Tap"
+            text="The unpacked Chrome extension publishes console, runtime, log, and network events to the daemon HTTP endpoint."
+          />
+        </div>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} variant="contained">
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function BlockedSourcesDialog({
+  blockedSources,
+  onClose,
+  onUnblock,
+  open,
+}: {
+  blockedSources: string[];
+  onClose: () => void;
+  onUnblock: (source: string) => void;
+  open: boolean;
+}) {
+  return (
+    <Dialog className="appDialog" fullWidth maxWidth="sm" onClose={onClose} open={open}>
+      <DialogTitle>Blocked Sources</DialogTitle>
+      <DialogContent>
+        {blockedSources.length === 0 ? (
+          <div className="emptyState">No blocked sources.</div>
+        ) : (
+          <div className="blockedSourceList">
+            {blockedSources.map((source) => (
+              <div className="blockedSourceRow" key={source}>
+                <span title={source}>{source}</span>
+                <Button onClick={() => onUnblock(source)} size="small" variant="outlined">
+                  Unblock
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} variant="contained">
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function HelpSection({ text, title }: { text: string; title: string }) {
+  return (
+    <section className="helpSection">
+      <h2>{title}</h2>
+      <p>{text}</p>
+    </section>
+  );
+}
+
+function KeyValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="keyValue">
+      <span>{label}</span>
+      <strong>{value.trim() === "" ? "unknown" : value}</strong>
+    </div>
   );
 }
 
@@ -1760,6 +2182,7 @@ function PaneMenu({
   expungeLabel,
   label,
   onAutoScrollChange,
+  onBlock,
   onClear,
   onDetailsChange,
   onExpunge,
@@ -1773,6 +2196,7 @@ function PaneMenu({
   expungeLabel: string;
   label: string;
   onAutoScrollChange: (enabled: boolean) => void;
+  onBlock?: () => void;
   onClear: () => void;
   onDetailsChange: (enabled: boolean) => void;
   onExpunge: () => void;
@@ -1854,6 +2278,20 @@ function PaneMenu({
               <OpenInNewIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText>{popOutLabel}</ListItemText>
+          </MenuItem>
+        )}
+        {onBlock != null && (
+          <MenuItem
+            className="paneMenuItem destructive"
+            onClick={() => {
+              onBlock();
+              closeMenu();
+            }}
+          >
+            <ListItemIcon>
+              <BlockIcon color="error" fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Block Source</ListItemText>
           </MenuItem>
         )}
         <MenuItem

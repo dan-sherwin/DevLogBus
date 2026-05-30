@@ -14,9 +14,29 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dan-sherwin/devlogbus/internal/buildinfo"
+	"github.com/dan-sherwin/devlogbus/internal/devlogbusd/app/consts"
 	devlogbusui "github.com/dan-sherwin/devlogbus/internal/devlogbusd/ui"
 	"github.com/dan-sherwin/devlogbus/pkg/protocol"
 )
+
+type aboutResponse struct {
+	API    apiAbout       `json:"api"`
+	Broker brokerAbout    `json:"broker"`
+	Build  buildinfo.Info `json:"build"`
+}
+
+type apiAbout struct {
+	OK bool `json:"ok"`
+}
+
+type brokerAbout struct {
+	Echo              bool   `json:"echo"`
+	Endpoint          string `json:"endpoint"`
+	HTTPListenAddress string `json:"httpListenAddress"`
+	MaxRecords        int    `json:"maxRecords"`
+	TCPListenAddress  string `json:"tcpListenAddress"`
+}
 
 func startHTTPServer(ctx context.Context, address string, b *broker) (func(), error) {
 	address = strings.TrimSpace(address)
@@ -30,6 +50,7 @@ func startHTTPServer(ctx context.Context, address string, b *broker) (func(), er
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/about", withCORS(handleHTTPAbout))
 	mux.HandleFunc("/api/health", withCORS(handleHTTPHealth))
 	mux.HandleFunc("/api/records", withCORSMethods(b.handleHTTPRecords, http.MethodGet, http.MethodPost))
 	mux.HandleFunc("/api/records/expunge", withCORSMethods(b.handleHTTPExpungeRecords, http.MethodDelete))
@@ -100,6 +121,20 @@ func withCORSMethods(next http.HandlerFunc, methods ...string) http.HandlerFunc 
 
 func handleHTTPHealth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func handleHTTPAbout(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, aboutResponse{
+		API: apiAbout{OK: true},
+		Broker: brokerAbout{
+			Echo:              Echo,
+			Endpoint:          Endpoint,
+			HTTPListenAddress: HTTPListenAddress,
+			MaxRecords:        MaxRecords,
+			TCPListenAddress:  TCPListenAddress,
+		},
+		Build: buildinfo.Read(consts.APPNAME, consts.Version, consts.Commit, consts.BuildDate),
+	})
 }
 
 func handleUI(uiFS fs.FS) http.HandlerFunc {

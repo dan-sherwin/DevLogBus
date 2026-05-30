@@ -156,6 +156,30 @@ func TestHTTPExpungeRecordsRemovesServerRecords(t *testing.T) {
 	}
 }
 
+func TestHTTPAboutReportsBuildAndBrokerDetails(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/about", nil)
+	rr := httptest.NewRecorder()
+
+	handleHTTPAbout(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	var response aboutResponse
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !response.API.OK {
+		t.Fatalf("api ok = false, want true")
+	}
+	if response.Build.AppName != "devlogbusd" {
+		t.Fatalf("app name = %q, want devlogbusd", response.Build.AppName)
+	}
+	if response.Broker.HTTPListenAddress == "" {
+		t.Fatalf("http listen address should be reported")
+	}
+}
+
 func TestSubscribeFromRequestParsesSources(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/stream?minLevel=info&source=ems,billing&source=tenant&replay=25&replayPerSource=50", nil)
 

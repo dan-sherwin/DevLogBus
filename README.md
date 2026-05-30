@@ -172,6 +172,8 @@ go run ./cmd/devlogbusd settings set endpoint /tmp/devlogbus/devlogbus.sock
 go run ./cmd/devlogbusd settings set endpoint 0.0.0.0:7422
 go run ./cmd/devlogbus settings set endpoint /tmp/devlogbus/devlogbus.sock
 go run ./cmd/devlogbus settings set endpoint prod-box:7422
+go run ./cmd/devlogbus version
+go run ./cmd/devlogbusd version
 go run ./cmd/devlogbus buildinfo
 ```
 

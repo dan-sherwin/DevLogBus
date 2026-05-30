@@ -138,6 +138,21 @@ p {
   gap: 10px;
 }
 
+.topbarIconButton.MuiIconButton-root {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--control-bg);
+  color: var(--text-soft);
+}
+
+.topbarIconButton.MuiIconButton-root:hover {
+  border-color: var(--border-focus);
+  background: var(--control-hover);
+  color: var(--text-main);
+}
+
 .popoutContext {
   max-width: min(48vw, 560px);
   display: inline-flex;
@@ -416,12 +431,19 @@ p {
   gap: 6px;
 }
 
+.childSourceControl {
+  max-width: 308px;
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  align-items: center;
+}
+
 .childSourceToggle {
-  max-width: 260px;
+  max-width: 280px;
   min-width: 74px;
   height: 28px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 5px 0 0 5px;
   color: var(--text-soft);
   cursor: pointer;
   overflow: hidden;
@@ -462,6 +484,22 @@ p {
 
 .childSourceToggle:hover {
   background: var(--control-hover);
+}
+
+.sourceBlockButton.MuiIconButton-root {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-left: 0;
+  border-radius: 0 5px 5px 0;
+  background: var(--control-bg);
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.sourceBlockButton.MuiIconButton-root:hover {
+  background: var(--destructive-hover);
+  color: var(--error-text);
 }
 
 .detachedToggle {
@@ -999,6 +1037,119 @@ dd {
   font-size: 14px;
 }
 
+.appDialog .MuiPaper-root {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+  color: var(--text-main);
+}
+
+.appDialog .MuiDialogTitle-root {
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+  font-size: 18px;
+  font-weight: 720;
+}
+
+.appDialog .MuiDialogContent-root {
+  padding-top: 18px !important;
+}
+
+.appDialog .MuiDialogActions-root {
+  border-top: 1px solid var(--border);
+  padding: 10px 16px;
+}
+
+.aboutGrid {
+  display: grid;
+  grid-template-columns: minmax(110px, auto) minmax(0, 1fr);
+  gap: 8px 14px;
+}
+
+.keyValue {
+  display: contents;
+}
+
+.keyValue span,
+.keyValue strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.keyValue span {
+  color: var(--text-muted);
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.keyValue strong {
+  color: var(--detail-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.helpGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.helpSection {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--control-bg);
+  padding: 12px;
+}
+
+.helpSection h2 {
+  margin: 0 0 7px;
+  color: var(--text-main);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.helpSection p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.blockedSourceList {
+  display: grid;
+  gap: 8px;
+}
+
+.blockedSourceRow {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--control-bg);
+  padding: 6px 6px 6px 10px;
+}
+
+.blockedSourceRow span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-main);
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dialogError {
+  min-height: 96px;
+  display: grid;
+  place-items: center;
+  color: var(--error-text);
+}
+
 @media (max-width: 900px) {
   .content,
   .splitContent {
@@ -1025,6 +1176,10 @@ dd {
     align-items: flex-start;
     flex-wrap: wrap;
     justify-content: flex-start;
+  }
+
+  .helpGrid {
+    grid-template-columns: 1fr;
   }
 
 }

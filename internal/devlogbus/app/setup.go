@@ -40,7 +40,7 @@ func mergeSettingsVars() {
 func skipSettingsSetup(args []string) bool {
 	for _, arg := range args {
 		switch arg {
-		case "-h", "--help", "--help-long", "--help-short", "buildinfo", "autoCompletions":
+		case "-h", "--help", "--help-long", "--help-short", "version", "buildinfo", "autoCompletions":
 			return true
 		}
 	}
