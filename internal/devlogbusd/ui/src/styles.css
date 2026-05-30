@@ -1088,54 +1088,143 @@ dd {
   font-weight: 600;
 }
 
-.helpSheet {
+.helpGuide {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
+  gap: 18px;
 }
 
-.helpPanel {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: 6px;
+.helpLead {
+  grid-column: 1 / -1;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  padding: 14px 16px;
 }
 
-.helpPanel h2 {
-  margin: 0 0 4px;
-  border-bottom: 1px solid var(--border);
+.helpLead h2,
+.helpWorkflow h2,
+.helpReference h2,
+.helpChrome h2 {
+  margin: 0;
   color: var(--text-main);
   font-size: 14px;
   font-weight: 720;
   letter-spacing: 0;
-  padding-bottom: 7px;
 }
 
-.helpRow {
+.helpLead p {
+  max-width: 920px;
+  margin: 7px 0 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.helpWorkflow,
+.helpReference,
+.helpChrome {
   min-width: 0;
   display: grid;
-  grid-template-columns: 118px minmax(0, 1fr);
+  align-content: start;
+  gap: 9px;
+}
+
+.helpChrome {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.helpChrome h2 {
+  grid-column: 1 / -1;
+}
+
+.helpStep {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  border-left: 2px solid var(--border-focus);
+  padding: 2px 0 8px 10px;
+}
+
+.helpStep > span {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--control-strong);
+  color: var(--text-main);
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.helpStep strong,
+.helpControl strong,
+.helpFact strong {
+  color: var(--detail-text);
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.helpStep p,
+.helpControl p {
+  margin: 3px 0 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.helpControl {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 104px 92px minmax(0, 1fr);
   gap: 10px;
   align-items: baseline;
   border-bottom: 1px solid rgb(255 255 255 / 5%);
   padding: 5px 0;
 }
 
-:root[data-theme="light"] .helpRow {
+:root[data-theme="light"] .helpControl {
   border-bottom-color: rgb(21 32 43 / 8%);
 }
 
-.helpRow strong {
-  min-width: 0;
+.helpControl span {
+  width: max-content;
+  max-width: 100%;
   overflow: hidden;
-  color: var(--detail-text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--control-bg);
+  color: var(--text-muted);
   font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.1;
+  padding: 3px 7px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.helpRow span {
+.helpControl p {
+  min-width: 0;
+  margin-top: 0;
+}
+
+.helpFact {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--control-bg);
+  padding: 10px;
+}
+
+.helpFact span {
   min-width: 0;
   color: var(--text-soft);
   font-size: 13px;
@@ -1204,8 +1293,17 @@ dd {
     justify-content: flex-start;
   }
 
-  .helpSheet {
+  .helpGuide,
+  .helpChrome {
     grid-template-columns: 1fr;
+  }
+
+  .helpChrome h2 {
+    grid-column: auto;
+  }
+
+  .helpControl {
+    grid-template-columns: 98px 82px minmax(0, 1fr);
   }
 
 }
@@ -1244,5 +1342,10 @@ dd {
 
   .paneLogRow {
     grid-template-columns: 78px 54px minmax(0, 1fr);
+  }
+
+  .helpControl,
+  .helpFact {
+    grid-template-columns: 1fr;
   }
 }

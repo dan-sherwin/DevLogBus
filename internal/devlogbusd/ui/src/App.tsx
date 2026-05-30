@@ -2019,46 +2019,103 @@ function AboutDialog({
 
 function HelpDialog({ onClose, open }: { onClose: () => void; open: boolean }) {
   return (
-    <Dialog className="appDialog" fullWidth maxWidth="md" onClose={onClose} open={open}>
-      <DialogTitle>Viewer Cheat Sheet</DialogTitle>
+    <Dialog className="appDialog" fullWidth maxWidth="lg" onClose={onClose} open={open}>
+      <DialogTitle>DevLogBus Field Guide</DialogTitle>
       <DialogContent>
-        <div className="helpSheet">
-          <section className="helpPanel">
-            <h2>Finding Signal</h2>
-            <HelpRow action="Merged" detail="One stream. Best when the whole system is still quiet." />
-            <HelpRow action="By source" detail="Pane per source. Best once the noise starts." />
-            <HelpRow
-              action="Chrome groups"
-              detail="A tab stays grouped; child hosts can be shown, hidden, blocked, or popped out."
+        <div className="helpGuide">
+          <section className="helpLead">
+            <h2>Fast path when logs get stupid</h2>
+            <p>
+              Start merged, split by source when the stream gets noisy, then hide, block, pop out,
+              or expunge only after you know what scope you are touching.
+            </p>
+          </section>
+
+          <section className="helpWorkflow">
+            <h2>Triage Flow</h2>
+            <HelpStep
+              index="1"
+              title="Check the stream"
+              text="Broker should read online. If records are coming in, Merged gives you the full timeline."
             />
-            <HelpRow
-              action="Search"
-              detail="Matches message, source, level, time, and structured fields."
+            <HelpStep
+              index="2"
+              title="Split the blast radius"
+              text="Switch to By source once one app, tab, or host starts burying the useful records."
+            />
+            <HelpStep
+              index="3"
+              title="Use pane controls locally"
+              text="Level filters, Pause, Details, and Bottom apply to the pane you opened them from."
+            />
+            <HelpStep
+              index="4"
+              title="Promote useful noise decisions"
+              text="Hide a source while thinking. Block it only when you want it gone across refreshes and popouts."
+            />
+            <HelpStep
+              index="5"
+              title="Clean up deliberately"
+              text="Clear affects the viewer. Expunge deletes replay records from the daemon buffer."
             />
           </section>
 
-          <section className="helpPanel">
-            <h2>Noise Control</h2>
-            <HelpRow action="Hide" detail="Temporary visibility toggle. Nothing is deleted." />
-            <HelpRow action="Block" detail="Persistent source suppression until you unblock it." />
-            <HelpRow action="Pause" detail="Stops that pane from accepting new records." />
-            <HelpRow action="Levels" detail="Per-pane DEBUG, INFO, WARN, ERROR filters." />
+          <section className="helpReference">
+            <h2>Controls</h2>
+            <HelpControl
+              control="Merged"
+              scope="viewer"
+              use="One ordered timeline across every visible source."
+            />
+            <HelpControl
+              control="By source"
+              scope="viewer"
+              use="Separate panes by source or Chrome tab group."
+            />
+            <HelpControl
+              control="Hide"
+              scope="visibility"
+              use="Removes a source/group from view without deleting records."
+            />
+            <HelpControl
+              control="Block"
+              scope="persistent"
+              use="Suppresses future records from that source until unblocked."
+            />
+            <HelpControl
+              control="Pop out"
+              scope="window"
+              use="Moves a source/group to a detached window and out of the parent."
+            />
+            <HelpControl
+              control="Clear"
+              scope="viewer"
+              use="Drops current viewer records; daemon replay stays intact."
+            />
+            <HelpControl
+              control="Expunge"
+              scope="daemon"
+              use="Deletes matching records from the daemon replay buffer."
+            />
           </section>
 
-          <section className="helpPanel">
-            <h2>Windows</h2>
-            <HelpRow action="Pop out" detail="Moves a source or group into its own window." />
-            <HelpRow action="Reattach" detail="Returns a detached window to the main viewer." />
-            <HelpRow action="Detached chips" detail="Click a chip in the main toolbar to pull it back." />
-          </section>
-
-          <section className="helpPanel">
-            <h2>Record Cleanup</h2>
-            <HelpRow action="Clear" detail="Removes records from this viewer only." />
-            <HelpRow action="Expunge" detail="Deletes matching replay records from the daemon buffer." />
-            <HelpRow
-              action="Chrome tap"
-              detail="The extension posts console, runtime, log, and network events to the daemon."
+          <section className="helpChrome">
+            <h2>Chrome Tap</h2>
+            <HelpFact
+              label="Source shape"
+              text="Chrome records group by tab, then split into child sources such as app host, API host, auth host, or analytics host."
+            />
+            <HelpFact
+              label="What it captures"
+              text="Console calls, runtime exceptions, browser log entries, and network events from the attached tab."
+            />
+            <HelpFact
+              label="Best move"
+              text="Block third-party junk like analytics once, then use the blocked-source list to bring it back later."
+            />
+            <HelpFact
+              label="Extension reload"
+              text="Reload Chrome extension only when extension files change. Viewer and daemon updates do not require it."
             />
           </section>
         </div>
@@ -2111,11 +2168,33 @@ function BlockedSourcesDialog({
   );
 }
 
-function HelpRow({ action, detail }: { action: string; detail: string }) {
+function HelpStep({ index, text, title }: { index: string; text: string; title: string }) {
   return (
-    <div className="helpRow">
-      <strong>{action}</strong>
-      <span>{detail}</span>
+    <div className="helpStep">
+      <span>{index}</span>
+      <div>
+        <strong>{title}</strong>
+        <p>{text}</p>
+      </div>
+    </div>
+  );
+}
+
+function HelpControl({ control, scope, use }: { control: string; scope: string; use: string }) {
+  return (
+    <div className="helpControl">
+      <strong>{control}</strong>
+      <span>{scope}</span>
+      <p>{use}</p>
+    </div>
+  );
+}
+
+function HelpFact({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="helpFact">
+      <strong>{label}</strong>
+      <span>{text}</span>
     </div>
   );
 }
