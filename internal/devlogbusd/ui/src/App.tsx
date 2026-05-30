@@ -56,8 +56,10 @@ type SourceGroup = {
 
 type SourcePaneModel = {
   childPanes: ChildSourcePane[];
+  childSourceToggles: ChildSourceToggle[];
   childSources: string[];
   group: string;
+  hiddenChildSources: string[];
   isGroup: boolean;
   label: string;
   layout: SourceLayout;
@@ -65,8 +67,16 @@ type SourcePaneModel = {
   records: LogRecord[];
   scopeKey: string;
   total: number;
+  visibleChildSources: string[];
   viewMode: ViewMode;
   visibleRecords: LogRecord[];
+};
+
+type ChildSourceToggle = {
+  hidden: boolean;
+  label: string;
+  source: string;
+  total: number;
 };
 
 type ChildSourcePane = {
@@ -214,11 +224,11 @@ function toggleLevel(selected: LogLevel[], level: LogLevel): LogLevel[] {
   return levels.filter((item) => item === level || selected.includes(item));
 }
 
-function toggleSource(excluded: string[], source: string): string[] {
-  if (excluded.includes(source)) {
-    return excluded.filter((item) => item !== source);
+function toggleExcludedKey(excluded: string[], key: string): string[] {
+  if (excluded.includes(key)) {
+    return excluded.filter((item) => item !== key);
   }
-  return [...excluded, source].sort();
+  return [...excluded, key].sort();
 }
 
 function recordMatchesSearch(record: LogRecord, query: string): boolean {
@@ -287,6 +297,14 @@ function groupKey(group: string): string {
 
 function sourceKey(source: string): string {
   return `source:${source}`;
+}
+
+function isGroupExcluded(excluded: string[], group: string): boolean {
+  return excluded.includes(groupKey(group)) || excluded.includes(group);
+}
+
+function isSourceExcluded(excluded: string[], source: string): boolean {
+  return excluded.includes(sourceKey(source));
 }
 
 function targetID(target: PopoutTarget): string {
@@ -784,7 +802,7 @@ export default function App() {
     return buildSourceGroups(scopedRecords);
   }, [popoutTarget, scopedRecords]);
   const selectedGroups = useMemo(
-    () => sourceGroups.filter((group) => !excludedSources.includes(group.group)),
+    () => sourceGroups.filter((group) => !isGroupExcluded(excludedSources, group.group)),
     [excludedSources, sourceGroups],
   );
   const detachedTargetChips = useMemo(
@@ -815,7 +833,10 @@ export default function App() {
       if (!selectedLevels.includes(normalized)) {
         return false;
       }
-      if (excludedSources.includes(projectedGroupKey(record))) {
+      if (
+        isGroupExcluded(excludedSources, projectedGroupKey(record)) ||
+        isSourceExcluded(excludedSources, record.source)
+      ) {
         return false;
       }
       if (!recordMatchesSearch(record, query)) {
@@ -829,14 +850,33 @@ export default function App() {
     const query = search.trim().toLowerCase();
     return selectedGroups.map((group): SourcePaneModel => {
       const isGroup = group.childSources.length > 1;
-      const singleSource = group.childSources[0] ?? group.group;
+      const childModels = group.childSources.map((source): ChildSourceToggle => {
+        const sourceRecords = group.records.filter((record) => record.source === source);
+        return {
+          hidden: isSourceExcluded(excludedSources, source),
+          label: chromeSourceLabel(source, sourceRecords),
+          source,
+          total: sourceRecords.length,
+        };
+      });
+      const visibleChildSources = childModels
+        .filter((child) => !child.hidden)
+        .map((child) => child.source);
+      const hiddenChildSources = childModels
+        .filter((child) => child.hidden)
+        .map((child) => child.source);
+      const visibleSourceSet = new Set(visibleChildSources);
+      const singleSource = visibleChildSources[0] ?? group.childSources[0] ?? group.group;
       const scope = isGroup ? groupKey(group.group) : sourceKey(singleSource);
       const paneLevels = sourceLevels(perSourceLevels, scope);
-      const visibleRecords = group.records.filter(
+      const visibleGroupRecords = group.records.filter((record) =>
+        visibleSourceSet.has(record.source),
+      );
+      const visibleRecords = visibleGroupRecords.filter(
         (record) =>
           paneLevels.includes(normalizeLevel(record.level)) && recordMatchesSearch(record, query),
       );
-      const childPanes = group.childSources.map((source): ChildSourcePane => {
+      const childPanes = visibleChildSources.map((source): ChildSourcePane => {
         const childScope = sourceKey(source);
         const childLevels = sourceLevels(perSourceLevels, childScope);
         const sourceRecords = group.records.filter((record) => record.source === source);
@@ -855,8 +895,10 @@ export default function App() {
       });
       return {
         childPanes,
+        childSourceToggles: childModels,
         childSources: group.childSources,
         group: group.group,
+        hiddenChildSources,
         isGroup,
         label: group.label,
         layout: groupLayouts[group.group] ?? "tiled",
@@ -864,17 +906,21 @@ export default function App() {
         records: group.records,
         scopeKey: scope,
         total: group.records.length,
+        visibleChildSources,
         viewMode: groupViewModes[group.group] ?? "merged",
         visibleRecords,
       };
     });
-  }, [groupLayouts, groupViewModes, perSourceLevels, search, selectedGroups]);
+  }, [excludedSources, groupLayouts, groupViewModes, perSourceLevels, search, selectedGroups]);
 
   const sourceVisibleRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
     return scopedRecords.filter((record) => {
       const group = projectedGroupKey(record);
-      if (excludedSources.includes(group)) {
+      if (
+        isGroupExcluded(excludedSources, group) ||
+        isSourceExcluded(excludedSources, record.source)
+      ) {
         return false;
       }
       const sourceGroup = sourceGroups.find((item) => item.group === group);
@@ -916,7 +962,9 @@ export default function App() {
     if (options?.forgetSource === true) {
       setKnownSources((current) => current.filter((item) => item !== source));
       const scope = sourceKey(source);
-      setExcludedSources((current) => current.filter((item) => item !== source));
+      setExcludedSources((current) =>
+        current.filter((item) => item !== source && item !== sourceKey(source)),
+      );
       setPerSourceLevels((current) => withoutSourceSetting(current, scope));
       setAutoScrollSources((current) => withoutSourceSetting(current, scope));
       setDetailSources((current) => withoutSourceSetting(current, scope));
@@ -939,7 +987,9 @@ export default function App() {
     setRecords((current) => current.filter((record) => recordSourceGroup(record) !== group));
     if (options?.forgetGroup === true) {
       const scope = groupKey(group);
-      setExcludedSources((current) => current.filter((item) => item !== group));
+      setExcludedSources((current) =>
+        current.filter((item) => item !== group && item !== groupKey(group)),
+      );
       setGroupViewModes((current) => withoutSourceSetting(current, group));
       setGroupLayouts((current) => withoutSourceSetting(current, group));
       setPerSourceLevels((current) => withoutSourceSetting(current, scope));
@@ -1229,15 +1279,20 @@ export default function App() {
             <div aria-label="Sources" className="sourceToggles" role="group">
               {sourceGroups.map((group) => {
                 const source = group.group;
+                const hidden = isGroupExcluded(excludedSources, source);
                 return (
                   <Button
-                    aria-pressed={!excludedSources.includes(source)}
+                    aria-pressed={!hidden}
                     className="sourceToggle"
                     key={source}
-                    onClick={() => setExcludedSources((current) => toggleSource(current, source))}
+                    onClick={() =>
+                      setExcludedSources((current) =>
+                        toggleExcludedKey(current, groupKey(source)),
+                      )
+                    }
                     size="small"
                     title={source}
-                    variant={excludedSources.includes(source) ? "outlined" : "contained"}
+                    variant={hidden ? "outlined" : "contained"}
                   >
                     {group.label}
                   </Button>
@@ -1369,7 +1424,9 @@ export default function App() {
                           </span>
                           {pane.isGroup && (
                             <span className="sourcePaneBadge">
-                              {pane.childSources.length} sources
+                              {pane.hiddenChildSources.length > 0
+                                ? `${pane.visibleChildSources.length}/${pane.childSources.length} sources`
+                                : `${pane.childSources.length} sources`}
                             </span>
                           )}
                         </div>
@@ -1449,107 +1506,136 @@ export default function App() {
                             popOutLabel={pane.isGroup ? "Pop Out Group" : "Pop Out Source"}
                           />
                         </div>
+                        {pane.isGroup && (
+                          <div
+                            aria-label={`${pane.label} child source visibility`}
+                            className="childSourceToggles"
+                            role="group"
+                          >
+                            {pane.childSourceToggles.map((child) => (
+                              <Button
+                                aria-pressed={!child.hidden}
+                                className="childSourceToggle"
+                                key={child.source}
+                                onClick={() =>
+                                  setExcludedSources((current) =>
+                                    toggleExcludedKey(current, sourceKey(child.source)),
+                                  )
+                                }
+                                size="small"
+                                title={`${child.hidden ? "Show" : "Hide"} ${child.source}`}
+                                variant={child.hidden ? "outlined" : "contained"}
+                              >
+                                {child.label}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
                       </header>
                       {pane.isGroup && pane.viewMode === "source" ? (
                         <div
                           className={`nestedSourcePaneArea ${pane.layout}`}
                           style={
                             {
-                              "--nested-source-count": pane.childPanes.length,
+                              "--nested-source-count": Math.max(1, pane.childPanes.length),
                             } as CSSProperties
                           }
                         >
-                          {pane.childPanes.map((child) => {
-                            const childDetails = sourceLineDetails(detailSources, child.scopeKey);
-                            const childPaused = sourcePaused(pausedSources, child.scopeKey);
-                            const childTarget: PopoutTarget = {
-                              key: child.source,
-                              kind: "source",
-                            };
-                            const canPopOutChild = !sameTarget(childTarget, popoutTarget);
-                            return (
-                              <section className="nestedSourcePane" key={child.source}>
-                                <header className="nestedSourceHeader">
-                                  <div className="sourcePaneTitle">
-                                    <strong title={child.source}>{child.label}</strong>
-                                    <span>
-                                      {child.records.length} / {child.total}
-                                    </span>
+                          {pane.childPanes.length === 0 ? (
+                            <div className="emptyState">No visible sources.</div>
+                          ) : (
+                            pane.childPanes.map((child) => {
+                              const childDetails = sourceLineDetails(detailSources, child.scopeKey);
+                              const childPaused = sourcePaused(pausedSources, child.scopeKey);
+                              const childTarget: PopoutTarget = {
+                                key: child.source,
+                                kind: "source",
+                              };
+                              const canPopOutChild = !sameTarget(childTarget, popoutTarget);
+                              return (
+                                <section className="nestedSourcePane" key={child.source}>
+                                  <header className="nestedSourceHeader">
+                                    <div className="sourcePaneTitle">
+                                      <strong title={child.source}>{child.label}</strong>
+                                      <span>
+                                        {child.records.length} / {child.total}
+                                      </span>
+                                    </div>
+                                    <div className="sourcePaneActions">
+                                      <LevelButtons
+                                        ariaLabel={`${child.label} levels`}
+                                        onToggle={(level) => togglePaneLevel(child.scopeKey, level)}
+                                        selected={child.levels}
+                                      />
+                                      <PaneMenu
+                                        autoScroll={sourceAutoScroll(autoScrollSources, child.scopeKey)}
+                                        details={childDetails}
+                                        expungeLabel="Expunge"
+                                        label={`${child.label} controls`}
+                                        onAutoScrollChange={(enabled) =>
+                                          toggleAutoScroll(child.scopeKey, enabled)
+                                        }
+                                        onClear={() => clearSourceRecords(child.source)}
+                                        onDetailsChange={(enabled) =>
+                                          toggleLineDetails(child.scopeKey, enabled)
+                                        }
+                                        onExpunge={() => {
+                                          void expungeRecords(child.source);
+                                        }}
+                                        onPauseChange={(enabled) =>
+                                          toggleSourcePause(child.scopeKey, enabled)
+                                        }
+                                        onPopOut={
+                                          canPopOutChild
+                                            ? () => openPopout(childTarget, child.label)
+                                            : undefined
+                                        }
+                                        paused={childPaused}
+                                        popOutLabel="Pop Out Source"
+                                      />
+                                    </div>
+                                  </header>
+                                  <div
+                                    className="paneLogList"
+                                    ref={(node) => {
+                                      if (node == null) {
+                                        delete paneLogListsRef.current[child.scopeKey];
+                                        return;
+                                      }
+                                      paneLogListsRef.current[child.scopeKey] = node;
+                                    }}
+                                  >
+                                    {child.records.length === 0 ? (
+                                      <div className="emptyState">No matching records.</div>
+                                    ) : (
+                                      child.records.map((record) => {
+                                        const level = normalizeLevel(record.level);
+                                        const isSelected = selected?.id === record.id;
+                                        const detailText = childDetails ? attrSummary(record.attrs) : "";
+                                        return (
+                                          <button
+                                            className={`paneLogRow ${isSelected ? "selected" : ""}`}
+                                            key={record.id}
+                                            onClick={() => setSelectedID(record.id)}
+                                            type="button"
+                                          >
+                                            <span className="time">{formatTime(record.time)}</span>
+                                            <span className={`level ${levelClass[level]}`}>{level}</span>
+                                            <span className="message">
+                                              <span>{record.message}</span>
+                                              {detailText !== "" && (
+                                                <span className="inlineAttrs"> "{detailText}"</span>
+                                              )}
+                                            </span>
+                                          </button>
+                                        );
+                                      })
+                                    )}
                                   </div>
-                                  <div className="sourcePaneActions">
-                                    <LevelButtons
-                                      ariaLabel={`${child.label} levels`}
-                                      onToggle={(level) => togglePaneLevel(child.scopeKey, level)}
-                                      selected={child.levels}
-                                    />
-                                    <PaneMenu
-                                      autoScroll={sourceAutoScroll(autoScrollSources, child.scopeKey)}
-                                      details={childDetails}
-                                      expungeLabel="Expunge"
-                                      label={`${child.label} controls`}
-                                      onAutoScrollChange={(enabled) =>
-                                        toggleAutoScroll(child.scopeKey, enabled)
-                                      }
-                                      onClear={() => clearSourceRecords(child.source)}
-                                      onDetailsChange={(enabled) =>
-                                        toggleLineDetails(child.scopeKey, enabled)
-                                      }
-                                      onExpunge={() => {
-                                        void expungeRecords(child.source);
-                                      }}
-                                      onPauseChange={(enabled) =>
-                                        toggleSourcePause(child.scopeKey, enabled)
-                                      }
-                                      onPopOut={
-                                        canPopOutChild
-                                          ? () => openPopout(childTarget, child.label)
-                                          : undefined
-                                      }
-                                      paused={childPaused}
-                                      popOutLabel="Pop Out Source"
-                                    />
-                                  </div>
-                                </header>
-                                <div
-                                  className="paneLogList"
-                                  ref={(node) => {
-                                    if (node == null) {
-                                      delete paneLogListsRef.current[child.scopeKey];
-                                      return;
-                                    }
-                                    paneLogListsRef.current[child.scopeKey] = node;
-                                  }}
-                                >
-                                  {child.records.length === 0 ? (
-                                    <div className="emptyState">No matching records.</div>
-                                  ) : (
-                                    child.records.map((record) => {
-                                      const level = normalizeLevel(record.level);
-                                      const isSelected = selected?.id === record.id;
-                                      const detailText = childDetails ? attrSummary(record.attrs) : "";
-                                      return (
-                                        <button
-                                          className={`paneLogRow ${isSelected ? "selected" : ""}`}
-                                          key={record.id}
-                                          onClick={() => setSelectedID(record.id)}
-                                          type="button"
-                                        >
-                                          <span className="time">{formatTime(record.time)}</span>
-                                          <span className={`level ${levelClass[level]}`}>{level}</span>
-                                          <span className="message">
-                                            <span>{record.message}</span>
-                                            {detailText !== "" && (
-                                              <span className="inlineAttrs"> "{detailText}"</span>
-                                            )}
-                                          </span>
-                                        </button>
-                                      );
-                                    })
-                                  )}
-                                </div>
-                              </section>
-                            );
-                          })}
+                                </section>
+                              );
+                            })
+                          )}
                         </div>
                       ) : (
                         <div

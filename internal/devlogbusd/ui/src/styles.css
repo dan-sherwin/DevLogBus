@@ -407,6 +407,63 @@ p {
   background: var(--control-hover);
 }
 
+.childSourceToggles {
+  width: 100%;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.childSourceToggle {
+  max-width: 260px;
+  min-width: 74px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-soft);
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0 8px;
+  text-overflow: ellipsis;
+  text-align: left;
+  text-transform: none !important;
+  white-space: nowrap;
+}
+
+.childSourceToggle.MuiButton-root {
+  justify-content: flex-start;
+  font-size: 11px;
+  line-height: 1.1;
+  text-transform: none;
+}
+
+.childSourceToggle.MuiButton-contained {
+  border-color: var(--border-focus);
+  background: rgb(81 167 217 / 18%);
+  color: var(--text-main);
+}
+
+.childSourceToggle.MuiButton-outlined {
+  background: var(--control-bg);
+  color: var(--text-muted);
+}
+
+.childSourceToggle[aria-pressed="true"] {
+  border-color: var(--border-focus);
+}
+
+.childSourceToggle:focus-visible {
+  border-color: var(--border-focus);
+  outline: 2px solid rgb(81 167 217 / 24%);
+  outline-offset: 1px;
+}
+
+.childSourceToggle:hover {
+  background: var(--control-hover);
+}
+
 .detachedToggle {
   max-width: 360px;
   min-width: 86px;
