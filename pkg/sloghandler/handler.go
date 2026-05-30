@@ -4,10 +4,10 @@ package sloghandler
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/dan-sherwin/devlogbus/internal/slogattrs"
 	"github.com/dan-sherwin/devlogbus/pkg/client"
 	"github.com/dan-sherwin/devlogbus/pkg/protocol"
 )
@@ -82,11 +82,11 @@ func (h *Handler) Handle(_ context.Context, record slog.Record) error {
 		Level:   record.Level.String(),
 		Source:  h.sink.source,
 		Message: record.Message,
-		Attrs:   copyAttrs(h.attrs),
+		Attrs:   slogattrs.Copy(h.attrs),
 	}
 
 	record.Attrs(func(attr slog.Attr) bool {
-		addAttr(out.Attrs, h.groups, attr)
+		slogattrs.Add(out.Attrs, h.groups, attr)
 		return true
 	})
 	if len(out.Attrs) == 0 {
@@ -103,9 +103,9 @@ func (h *Handler) Handle(_ context.Context, record slog.Record) error {
 // WithAttrs returns a handler with additional attributes.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	clone := *h
-	clone.attrs = copyAttrs(h.attrs)
+	clone.attrs = slogattrs.Copy(h.attrs)
 	for _, attr := range attrs {
-		addAttr(clone.attrs, h.groups, attr)
+		slogattrs.Add(clone.attrs, h.groups, attr)
 	}
 	return &clone
 }
@@ -142,57 +142,5 @@ func (s *sink) run() {
 			publisher = nil
 		}
 		cancel()
-	}
-}
-
-func copyAttrs(source map[string]any) map[string]any {
-	clone := make(map[string]any, len(source))
-	for key, value := range source {
-		clone[key] = value
-	}
-	return clone
-}
-
-func addAttr(attrs map[string]any, groups []string, attr slog.Attr) {
-	attr.Value = attr.Value.Resolve()
-	if attr.Value.Kind() == slog.KindGroup {
-		nextGroups := groups
-		if attr.Key != "" {
-			nextGroups = append(append([]string{}, groups...), attr.Key)
-		}
-		for _, groupAttr := range attr.Value.Group() {
-			addAttr(attrs, nextGroups, groupAttr)
-		}
-		return
-	}
-	if attr.Key == "" {
-		return
-	}
-
-	key := attr.Key
-	for i := len(groups) - 1; i >= 0; i-- {
-		key = groups[i] + "." + key
-	}
-	attrs[key] = valueAny(attr.Value)
-}
-
-func valueAny(value slog.Value) any {
-	switch value.Kind() {
-	case slog.KindString:
-		return value.String()
-	case slog.KindBool:
-		return value.Bool()
-	case slog.KindDuration:
-		return value.Duration().String()
-	case slog.KindFloat64:
-		return value.Float64()
-	case slog.KindInt64:
-		return value.Int64()
-	case slog.KindTime:
-		return value.Time().Format(time.RFC3339Nano)
-	case slog.KindUint64:
-		return value.Uint64()
-	default:
-		return fmt.Sprint(value.Any())
 	}
 }

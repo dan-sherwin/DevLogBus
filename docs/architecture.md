@@ -72,6 +72,14 @@ The project is one Go module with multiple binaries. That keeps the public impor
 - `cmd/devlogbus-journal-bridge` is intentionally tiny and delegates to `internal/journalbridge/app`.
 - `internal/devlogbusd/ui` owns the React live viewer and its checked-in production bundle for Go embedding.
 - `extensions/chrome-devlogbus` owns the load-unpacked Chrome extension for active browser debugging.
-- `pkg/protocol`, `pkg/client`, and `pkg/sloghandler` remain public packages under the root module.
+- `pkg/protocol`, `pkg/client`, `pkg/sloghandler`, and `pkg/runtime` remain public packages under the root module.
+
+`pkg/sloghandler` is the fixed-configuration slog path: create it with a
+source and endpoint, then let it publish non-blocking records for the life of
+the process. `pkg/runtime` is the controlled path for applications that need to
+toggle DevLogBus or switch endpoints while running. It deliberately stops at
+plain Go state and a `slog.Handler`; persistent settings, command parsers, RPC
+hooks, and template-specific wiring belong in the consuming app or in adapter
+modules layered above it.
 
 The importable packages are not a nested module yet. Splitting them later should be a deliberate versioning decision, not scaffolding drag.

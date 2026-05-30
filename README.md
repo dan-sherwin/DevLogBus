@@ -28,6 +28,7 @@ pkg/
   protocol/          wire messages and filtering helpers
   client/            Go client for the broker
   sloghandler/       non-blocking slog.Handler publisher
+  runtime/           reconfigurable slog runtime controls
 
 ```
 
@@ -156,6 +157,30 @@ unavailable or the queue is full. It keeps a persistent publisher connection and
 reconnects after transport errors. Application logging should never block normal
 service work.
 
+## Go Runtime Controls
+
+Applications that need to enable/disable DevLogBus or change the broker
+endpoint at runtime can use `pkg/runtime`:
+
+```go
+devlog := runtime.New(runtime.Options{
+    Enabled:  true,
+    Source:   "event_management_svc",
+    Endpoint: "/tmp/devlogbus/devlogbus.sock",
+})
+defer devlog.Close()
+
+logger := slog.New(devlog.Handler())
+devlog.Disable()
+devlog.Enable()
+_ = devlog.SetEndpoint("devbox:7422")
+```
+
+The runtime package is public-friendly by design. It has no dependency on
+Dan's app-settings, CLI, RPC, service-template, or BMS packages. Higher-level
+applications can store the `Enabled` and `Endpoint` values however they want
+and pass changes into the runtime controls.
+
 ## Bootstrap Apps
 
 The two Go binaries follow Dan's standard Go templates:
@@ -187,6 +212,7 @@ The importable Go packages stay in the root module for now:
 ```text
 github.com/dan-sherwin/devlogbus/pkg/client
 github.com/dan-sherwin/devlogbus/pkg/protocol
+github.com/dan-sherwin/devlogbus/pkg/runtime
 github.com/dan-sherwin/devlogbus/pkg/sloghandler
 ```
 
