@@ -2020,33 +2020,47 @@ function AboutDialog({
 function HelpDialog({ onClose, open }: { onClose: () => void; open: boolean }) {
   return (
     <Dialog className="appDialog" fullWidth maxWidth="md" onClose={onClose} open={open}>
-      <DialogTitle>Help</DialogTitle>
+      <DialogTitle>Viewer Cheat Sheet</DialogTitle>
       <DialogContent>
-        <div className="helpGrid">
-          <HelpSection
-            title="Views"
-            text="Merged shows one filtered stream. By source splits records into source panes, and Chrome tab groups can be viewed merged or as child sources."
-          />
-          <HelpSection
-            title="Filters"
-            text="Search filters message, source, time, level, and fields. Level buttons are per pane, so one noisy pane can be narrowed without changing the rest."
-          />
-          <HelpSection
-            title="Hide vs Block"
-            text="Hide is temporary pane visibility. Block is persisted source suppression until the source is unblocked from the blocked-source list."
-          />
-          <HelpSection
-            title="Popout"
-            text="Popout detaches a group or source into its own window and removes it from the parent view until Reattach is used."
-          />
-          <HelpSection
-            title="Clear and Expunge"
-            text="Clear removes records from the viewer only. Expunge deletes matching replay records from the daemon buffer."
-          />
-          <HelpSection
-            title="Chrome Browser Tap"
-            text="The unpacked Chrome extension publishes console, runtime, log, and network events to the daemon HTTP endpoint."
-          />
+        <div className="helpSheet">
+          <section className="helpPanel">
+            <h2>Finding Signal</h2>
+            <HelpRow action="Merged" detail="One stream. Best when the whole system is still quiet." />
+            <HelpRow action="By source" detail="Pane per source. Best once the noise starts." />
+            <HelpRow
+              action="Chrome groups"
+              detail="A tab stays grouped; child hosts can be shown, hidden, blocked, or popped out."
+            />
+            <HelpRow
+              action="Search"
+              detail="Matches message, source, level, time, and structured fields."
+            />
+          </section>
+
+          <section className="helpPanel">
+            <h2>Noise Control</h2>
+            <HelpRow action="Hide" detail="Temporary visibility toggle. Nothing is deleted." />
+            <HelpRow action="Block" detail="Persistent source suppression until you unblock it." />
+            <HelpRow action="Pause" detail="Stops that pane from accepting new records." />
+            <HelpRow action="Levels" detail="Per-pane DEBUG, INFO, WARN, ERROR filters." />
+          </section>
+
+          <section className="helpPanel">
+            <h2>Windows</h2>
+            <HelpRow action="Pop out" detail="Moves a source or group into its own window." />
+            <HelpRow action="Reattach" detail="Returns a detached window to the main viewer." />
+            <HelpRow action="Detached chips" detail="Click a chip in the main toolbar to pull it back." />
+          </section>
+
+          <section className="helpPanel">
+            <h2>Record Cleanup</h2>
+            <HelpRow action="Clear" detail="Removes records from this viewer only." />
+            <HelpRow action="Expunge" detail="Deletes matching replay records from the daemon buffer." />
+            <HelpRow
+              action="Chrome tap"
+              detail="The extension posts console, runtime, log, and network events to the daemon."
+            />
+          </section>
         </div>
       </DialogContent>
       <DialogActions>
@@ -2097,12 +2111,12 @@ function BlockedSourcesDialog({
   );
 }
 
-function HelpSection({ text, title }: { text: string; title: string }) {
+function HelpRow({ action, detail }: { action: string; detail: string }) {
   return (
-    <section className="helpSection">
-      <h2>{title}</h2>
-      <p>{text}</p>
-    </section>
+    <div className="helpRow">
+      <strong>{action}</strong>
+      <span>{detail}</span>
+    </div>
   );
 }
 

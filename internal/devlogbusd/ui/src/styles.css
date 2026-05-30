@@ -1088,32 +1088,58 @@ dd {
   font-weight: 600;
 }
 
-.helpGrid {
+.helpSheet {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
-.helpSection {
+.helpPanel {
   min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--control-bg);
-  padding: 12px;
+  display: grid;
+  align-content: start;
+  gap: 6px;
 }
 
-.helpSection h2 {
-  margin: 0 0 7px;
+.helpPanel h2 {
+  margin: 0 0 4px;
+  border-bottom: 1px solid var(--border);
   color: var(--text-main);
   font-size: 14px;
+  font-weight: 720;
   letter-spacing: 0;
+  padding-bottom: 7px;
 }
 
-.helpSection p {
-  margin: 0;
+.helpRow {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  border-bottom: 1px solid rgb(255 255 255 / 5%);
+  padding: 5px 0;
+}
+
+:root[data-theme="light"] .helpRow {
+  border-bottom-color: rgb(21 32 43 / 8%);
+}
+
+.helpRow strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--detail-text);
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.helpRow span {
+  min-width: 0;
   color: var(--text-soft);
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 1.35;
 }
 
 .blockedSourceList {
@@ -1178,7 +1204,7 @@ dd {
     justify-content: flex-start;
   }
 
-  .helpGrid {
+  .helpSheet {
     grid-template-columns: 1fr;
   }
 
