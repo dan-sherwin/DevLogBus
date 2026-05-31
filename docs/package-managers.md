@@ -108,15 +108,22 @@ sudo apt install devlogbus
 
 ```bash
 sudo curl -fsSL -o /etc/yum.repos.d/devlogbus.repo https://dan-sherwin.github.io/devlogbus-linux-repo/rpm/devlogbus.repo
-sudo rpm --import https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlogbus-archive-key.asc
 sudo dnf install devlogbus
 ```
 
 For openSUSE, write the same repository file to
-`/etc/zypp/repos.d/devlogbus.repo`, import the same key, and run:
+`/etc/zypp/repos.d/devlogbus.repo` and run:
 
 ```bash
 sudo zypper install devlogbus
+```
+
+The RPM packages and repository metadata are still signed. Users who want
+signature checks can import the key and set `gpgcheck=1` and
+`repo_gpgcheck=1` in the repository file:
+
+```bash
+sudo rpm --import https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlogbus-archive-key.asc
 ```
 
 ```sh

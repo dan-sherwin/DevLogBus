@@ -258,8 +258,8 @@ build_rpm_repo() {
 name=DevLogBus
 baseurl=$BASE_URL/rpm/\$basearch
 enabled=1
-gpgcheck=1
-repo_gpgcheck=1
+gpgcheck=0
+repo_gpgcheck=0
 gpgkey=$BASE_URL/keys/devlogbus-archive-key.asc
 EOF
 }
@@ -470,12 +470,19 @@ sudo apt install devlogbus
 
 \`\`\`bash
 sudo curl -fsSL -o /etc/yum.repos.d/devlogbus.repo $BASE_URL/rpm/devlogbus.repo
-sudo rpm --import $BASE_URL/keys/devlogbus-archive-key.asc
 sudo dnf install devlogbus
 \`\`\`
 
 Use the same repository file under \`/etc/zypp/repos.d/devlogbus.repo\` and run
 \`sudo zypper install devlogbus\` on openSUSE.
+
+The RPM packages and repository metadata are still signed. Users who want
+signature checks can import the key and set \`gpgcheck=1\` and
+\`repo_gpgcheck=1\` in the repository file:
+
+\`\`\`bash
+sudo rpm --import $BASE_URL/keys/devlogbus-archive-key.asc
+\`\`\`
 
 ## Alpine Linux
 
@@ -524,9 +531,10 @@ sudo apt install devlogbus</code></pre>
 
   <h2>Fedora / RHEL / openSUSE</h2>
   <pre><code>sudo curl -fsSL -o /etc/yum.repos.d/devlogbus.repo $BASE_URL/rpm/devlogbus.repo
-sudo rpm --import $BASE_URL/keys/devlogbus-archive-key.asc
 sudo dnf install devlogbus</code></pre>
   <p>Use the same repository file under <code>/etc/zypp/repos.d/devlogbus.repo</code> and run <code>sudo zypper install devlogbus</code> on openSUSE.</p>
+  <p>The RPM packages and repository metadata are still signed. Users who want signature checks can import the key and set <code>gpgcheck=1</code> and <code>repo_gpgcheck=1</code> in the repository file.</p>
+  <pre><code>sudo rpm --import $BASE_URL/keys/devlogbus-archive-key.asc</code></pre>
 
   <h2>Alpine Linux</h2>
   <pre><code>sudo wget -O /etc/apk/keys/$ALPINE_KEY_NAME.rsa.pub $BASE_URL/keys/$ALPINE_KEY_NAME.rsa.pub
