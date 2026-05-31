@@ -1,15 +1,57 @@
 package client
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
-func TestDefaultSocketPathIsStable(t *testing.T) {
-	if got := DefaultSocketPath(); got != "/tmp/devlogbus/devlogbus.sock" {
-		t.Fatalf("DefaultSocketPath = %q, want stable /tmp path", got)
+func TestDefaultSocketPathUsesConfiguredDirAndName(t *testing.T) {
+	want := filepath.Join(DefaultSocketDir, DefaultSocketName)
+	if got := DefaultSocketPath(); got != want {
+		t.Fatalf("DefaultSocketPath = %q, want %q", got, want)
 	}
 }
 
-func TestNewWithOptionsDefaultsToUnixSocket(t *testing.T) {
+func TestDefaultEndpointByPlatform(t *testing.T) {
+	tests := []struct {
+		goos string
+		want string
+	}{
+		{goos: "darwin", want: DefaultSocketPath()},
+		{goos: "linux", want: DefaultSocketPath()},
+		{goos: "windows", want: DefaultTCPAddress},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.goos, func(t *testing.T) {
+			if got := defaultEndpoint(tt.goos); got != tt.want {
+				t.Fatalf("defaultEndpoint(%q) = %q, want %q", tt.goos, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewWithOptionsDefaultsToPlatformEndpoint(t *testing.T) {
 	c := NewWithOptions(Options{})
+
+	network, address, err := c.endpoint()
+	if err != nil {
+		t.Fatalf("endpoint returned error: %v", err)
+	}
+	want, err := ParseEndpoint(DefaultEndpoint())
+	if err != nil {
+		t.Fatalf("parse default endpoint: %v", err)
+	}
+	if network != want.Network {
+		t.Fatalf("network = %q, want %q", network, want.Network)
+	}
+	if address != want.Address {
+		t.Fatalf("address = %q, want %q", address, want.Address)
+	}
+}
+
+func TestNewWithOptionsUsesExplicitUnixDefault(t *testing.T) {
+	c := NewWithOptions(Options{Network: NetworkUnix})
 
 	network, address, err := c.endpoint()
 	if err != nil {
@@ -54,7 +96,8 @@ func TestNewWithOptionsInfersTCPWhenAddressIsSet(t *testing.T) {
 }
 
 func TestNewWithOptionsUsesEndpointSocketPath(t *testing.T) {
-	c := NewWithOptions(Options{Endpoint: "/tmp/devlogbus/devlogbus.sock"})
+	socketPath := filepath.Clean("/tmp/devlogbus/devlogbus.sock")
+	c := NewWithOptions(Options{Endpoint: socketPath})
 
 	network, address, err := c.endpoint()
 	if err != nil {
@@ -63,10 +106,10 @@ func TestNewWithOptionsUsesEndpointSocketPath(t *testing.T) {
 	if network != NetworkUnix {
 		t.Fatalf("network = %q, want %q", network, NetworkUnix)
 	}
-	if address != "/tmp/devlogbus/devlogbus.sock" {
+	if address != socketPath {
 		t.Fatalf("address = %q, want socket path", address)
 	}
-	if c.Endpoint != "/tmp/devlogbus/devlogbus.sock" {
+	if c.Endpoint != socketPath {
 		t.Fatalf("client endpoint = %q, want socket path", c.Endpoint)
 	}
 }
@@ -96,9 +139,10 @@ func TestParseEndpointSupportsSchemes(t *testing.T) {
 		network string
 		address string
 	}{
-		{name: "unix scheme", raw: "unix:/tmp/devlogbus/devlogbus.sock", network: NetworkUnix, address: "/tmp/devlogbus/devlogbus.sock"},
+		{name: "unix scheme", raw: "unix:/tmp/devlogbus/devlogbus.sock", network: NetworkUnix, address: filepath.Clean("/tmp/devlogbus/devlogbus.sock")},
 		{name: "tcp scheme", raw: "tcp://127.0.0.1:7422", network: NetworkTCP, address: "127.0.0.1:7422"},
 		{name: "tcp prefix", raw: "tcp:devbox:7422", network: NetworkTCP, address: "devbox:7422"},
+		{name: "single letter tcp host", raw: "x:7422", network: NetworkTCP, address: "x:7422"},
 	}
 
 	for _, tt := range tests {
@@ -120,5 +164,28 @@ func TestParseEndpointSupportsSchemes(t *testing.T) {
 func TestParseEndpointRejectsTCPWithoutPort(t *testing.T) {
 	if _, err := ParseEndpoint("tcp://127.0.0.1"); err == nil {
 		t.Fatal("expected tcp endpoint without port to fail")
+	}
+}
+
+func TestParseEndpointTreatsPathLikeValuesAsUnix(t *testing.T) {
+	tests := []string{
+		"/tmp/devlogbus/devlogbus.sock",
+		`\WINDOWS\SystemTemp\devlogbus-test.sock`,
+		`C:\WINDOWS\SystemTemp\devlogbus-test.sock`,
+	}
+
+	for _, raw := range tests {
+		t.Run(raw, func(t *testing.T) {
+			endpoint, err := ParseEndpoint(raw)
+			if err != nil {
+				t.Fatalf("parse endpoint: %v", err)
+			}
+			if endpoint.Network != NetworkUnix {
+				t.Fatalf("network = %q, want %q", endpoint.Network, NetworkUnix)
+			}
+			if endpoint.Address != filepath.Clean(raw) {
+				t.Fatalf("address = %q, want %q", endpoint.Address, filepath.Clean(raw))
+			}
+		})
 	}
 }

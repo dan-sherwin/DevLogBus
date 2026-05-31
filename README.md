@@ -41,9 +41,10 @@ go run ./cmd/devlogbusd run
 ```
 
 The broker listens on its configured endpoint for Go/CLI clients and on
-`127.0.0.1:7423` for browser clients by default. The default broker endpoint
-is the stable local Unix socket `/tmp/devlogbus/devlogbus.sock`, but it can also
-be a TCP address like `0.0.0.0:7422`.
+`127.0.0.1:7423` for browser clients by default. The default broker endpoint is
+the stable local Unix socket `/tmp/devlogbus/devlogbus.sock` on macOS/Linux and
+`127.0.0.1:7422` on Windows, but it can also be a TCP address like
+`0.0.0.0:7422`.
 Disable the browser endpoint with `--http ""`, or set a different address with
 `--http 127.0.0.1:7424`. Open `http://127.0.0.1:7423/` to use the embedded live
 viewer.
@@ -113,6 +114,7 @@ same DevLogBus stream as backend service records.
 
 For Linux install, systemd, and journald bridge notes, see
 `docs/linux.md`.
+For Windows install and platform notes, see `docs/windows.md`.
 
 ## Interactive Viewers
 

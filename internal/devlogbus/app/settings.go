@@ -10,7 +10,7 @@ import (
 
 var (
 	LoggingLevel        = "info"
-	Endpoint            = client.DefaultSocketPath()
+	Endpoint            = client.DefaultEndpoint()
 	legacyBrokerNetwork string
 	legacyBrokerAddress string
 )

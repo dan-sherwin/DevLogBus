@@ -21,11 +21,12 @@ This is a local developer workflow tool. Keep the broker boring and reliable, an
 
 ## Transports
 
-The default transport is newline-delimited JSON over the stable Unix domain
-socket `/tmp/devlogbus/devlogbus.sock`. The configured broker endpoint can also
-be a TCP address such as `0.0.0.0:7422`, and the same publish, subscribe, and
-expunge protocol can run on an additional TCP listener for live troubleshooting
-across machines.
+The default transport on macOS and Linux is newline-delimited JSON over the
+stable Unix domain socket `/tmp/devlogbus/devlogbus.sock`. Windows defaults to
+the loopback TCP endpoint `127.0.0.1:7422`. The configured broker endpoint can
+also be a TCP address such as `0.0.0.0:7422`, and the same publish, subscribe,
+and expunge protocol can run on an additional TCP listener for live
+troubleshooting across machines.
 
 The daemon HTTP listener is the browser-facing boundary. It serves the embedded
 React viewer, exposes replay and SSE streaming endpoints, and accepts published

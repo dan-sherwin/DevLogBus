@@ -11,7 +11,7 @@ import (
 
 var (
 	LoggingLevel      = "debug"
-	Endpoint          = client.DefaultSocketPath()
+	Endpoint          = client.DefaultEndpoint()
 	TCPListenAddress  = ""
 	HTTPListenAddress = "127.0.0.1:7423"
 	MaxRecords        = 5000

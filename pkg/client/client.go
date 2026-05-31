@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/url"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -25,6 +26,8 @@ const (
 	DefaultSocketName = "devlogbus.sock"
 	// DefaultSocketDir is the stable local directory used for the default Unix socket.
 	DefaultSocketDir = "/tmp/devlogbus"
+	// DefaultTCPAddress is the default loopback TCP endpoint used on Windows.
+	DefaultTCPAddress = "127.0.0.1:7422"
 )
 
 // Options configures a broker client.
@@ -69,8 +72,14 @@ func DefaultSocketPath() string {
 	return filepath.Join(DefaultSocketDir, DefaultSocketName)
 }
 
-// New returns a client that uses endpoint, or the default socket path when
-// endpoint is empty. Endpoint may be a Unix socket path or host:port TCP address.
+// DefaultEndpoint returns the default local broker endpoint for this platform.
+func DefaultEndpoint() string {
+	return defaultEndpoint(runtime.GOOS)
+}
+
+// New returns a client that uses endpoint, or the platform default endpoint
+// when endpoint is empty. Endpoint may be a Unix socket path or host:port TCP
+// address.
 func New(endpoint string) *Client {
 	return NewWithOptions(Options{Endpoint: endpoint})
 }
@@ -94,6 +103,17 @@ func NewWithOptions(options Options) *Client {
 	network := strings.TrimSpace(options.Network)
 	address := strings.TrimSpace(options.Address)
 	socketPath := strings.TrimSpace(options.SocketPath)
+	if network == "" && address == "" && socketPath == "" {
+		resolved, err := ParseEndpoint(DefaultEndpoint())
+		if err == nil {
+			return &Client{
+				Endpoint:   resolved.String(),
+				Network:    resolved.Network,
+				Address:    resolved.Address,
+				SocketPath: resolved.SocketPath,
+			}
+		}
+	}
 	if network == "" {
 		if address != "" {
 			network = NetworkTCP
@@ -142,6 +162,9 @@ func ParseEndpoint(raw string) (ResolvedEndpoint, error) {
 		return parseTCPEndpoint(raw[len("tcp:"):])
 	}
 
+	if looksLikeSocketPath(raw) {
+		return parseUnixEndpoint(raw)
+	}
 	if endpoint, err := parseTCPEndpoint(raw); err == nil {
 		return endpoint, nil
 	}
@@ -322,6 +345,13 @@ func (c *Client) endpoint() (string, string, error) {
 	network := strings.TrimSpace(c.Network)
 	address := strings.TrimSpace(c.Address)
 	socketPath := strings.TrimSpace(c.SocketPath)
+	if network == "" && address == "" && socketPath == "" {
+		resolved, err := ParseEndpoint(DefaultEndpoint())
+		if err != nil {
+			return "", "", err
+		}
+		return resolved.Network, resolved.Address, nil
+	}
 	if network == "" {
 		if address != "" {
 			network = NetworkTCP
@@ -355,6 +385,17 @@ func validateRecord(record *protocol.Record) error {
 	}
 	record.Level = protocol.NormalizeLevel(record.Level)
 	return record.Validate()
+}
+
+func defaultEndpoint(goos string) string {
+	if goos == "windows" {
+		return DefaultTCPAddress
+	}
+	return DefaultSocketPath()
+}
+
+func looksLikeSocketPath(raw string) bool {
+	return strings.ContainsAny(raw, `/\`)
 }
 
 func parseUnixEndpoint(socketPath string) (ResolvedEndpoint, error) {

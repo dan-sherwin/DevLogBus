@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dan-sherwin/devlogbus/pkg/client"
 	"github.com/dan-sherwin/devlogbus/pkg/protocol"
 )
 
@@ -18,8 +19,8 @@ func TestNewDefaultsToDisabled(t *testing.T) {
 	if status.Enabled {
 		t.Fatal("expected runtime to default to disabled")
 	}
-	if status.Endpoint != "/tmp/devlogbus/devlogbus.sock" {
-		t.Fatalf("endpoint = %q, want default socket path", status.Endpoint)
+	if status.Endpoint != client.DefaultEndpoint() {
+		t.Fatalf("endpoint = %q, want default endpoint %q", status.Endpoint, client.DefaultEndpoint())
 	}
 }
 
