@@ -16,16 +16,17 @@ Create or update a tap repository such as `dan-sherwin/homebrew-devlogbus`, then
 generate the formula from release artifacts:
 
 ```bash
-VERSION=v0.1.0 ./dev/release-artifacts.sh dist/release
+VERSION=v1.2.0 ./dev/release-artifacts.sh dist/release
 dev/homebrew-formula.sh \
-  --version v0.1.0 \
+  --version v1.2.0 \
   --checksums dist/release/checksums.txt \
   --out /path/to/homebrew-devlogbus/Formula/devlogbus.rb
 ```
 
 The generated formula selects the right macOS or Linux archive for Intel and
 ARM machines, installs the three binaries, and includes a smoke test for
-`devlogbus version` and `devlogbusd version`.
+`devlogbus version`, `devlogbusd version`, and
+`devlogbus-journal-bridge version`.
 
 After committing the formula to the tap, users can install with:
 
@@ -37,19 +38,17 @@ devlogbusd run
 
 ## License Field
 
-`dev/homebrew-formula.sh` defaults to Homebrew's `:cannot_represent` license
-marker because this repository does not currently declare a public license. Once
-a project license is chosen, pass it explicitly:
+`dev/homebrew-formula.sh` defaults the formula license to `MIT`, matching the
+repository license file.
+
+Override `FORMULA_LICENSE` only if the project license changes:
 
 ```bash
-FORMULA_LICENSE=MIT dev/homebrew-formula.sh \
-  --version v0.1.0 \
+FORMULA_LICENSE=Apache-2.0 dev/homebrew-formula.sh \
+  --version v1.2.0 \
   --checksums dist/release/checksums.txt \
   --out /path/to/homebrew-devlogbus/Formula/devlogbus.rb
 ```
-
-Do not claim a license in the formula until the repository has the matching
-license file.
 
 ## Future Windows Packages
 

@@ -9,6 +9,10 @@ BUILD_DATE="${BUILD_DATE:-$(date -u +"%Y-%m-%dT%H:%M:%SZ")}"
 RELEASE_STRICT_VERSION="${RELEASE_STRICT_VERSION:-0}"
 GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.3}"
 
+if [[ "$OUT_DIR" != /* ]]; then
+	OUT_DIR="$ROOT/$OUT_DIR"
+fi
+
 safe_version="$(printf "%s" "$VERSION" | sed "s/[^A-Za-z0-9._-]/-/g")"
 work_dir="$(mktemp -d)"
 
@@ -76,7 +80,7 @@ build_target() {
 	local stage="$work_dir/$artifact_base"
 
 	mkdir -p "$stage"
-	cp "$ROOT/README.md" "$ROOT/CHANGELOG.md" "$stage/"
+	cp "$ROOT/README.md" "$ROOT/CHANGELOG.md" "$ROOT/LICENSE" "$stage/"
 	cp -R "$ROOT/docs" "$stage/"
 
 	build_binary "$goos" "$goarch" "devlogbusd" "./cmd/devlogbusd" "github.com/dan-sherwin/devlogbus/internal/devlogbusd/app/consts" "$stage"

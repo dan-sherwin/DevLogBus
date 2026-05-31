@@ -7,6 +7,10 @@ OUT_DIR="${1:-$ROOT/dist/browser-tap-store}"
 VERSION="${VERSION:-}"
 RELEASE_STRICT_VERSION="${RELEASE_STRICT_VERSION:-0}"
 
+if [[ "$OUT_DIR" != /* ]]; then
+	OUT_DIR="$ROOT/$OUT_DIR"
+fi
+
 command -v node >/dev/null 2>&1 || {
 	echo "node is required to read and validate the extension manifest" >&2
 	exit 1

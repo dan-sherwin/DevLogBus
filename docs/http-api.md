@@ -226,7 +226,7 @@ Response includes API status, broker settings, and build metadata:
   },
   "build": {
     "app": "devlogbusd",
-    "version": "v0.1.0",
+    "version": "v1.2.0",
     "commit": "abc123",
     "buildDate": "2026-05-31T12:00:00Z"
   }

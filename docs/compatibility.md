@@ -1,12 +1,9 @@
 # Compatibility Policy
 
 This policy describes the intended v1 compatibility surface for public users.
-Until a `v1.0.0` release is tagged, DevLogBus may still make breaking changes
-when needed to get the public API right.
+DevLogBus uses semantic versioning for public releases.
 
 ## Versioning
-
-After `v1.0.0`, DevLogBus should use semantic versioning:
 
 - Patch releases fix bugs and documentation.
 - Minor releases add compatible features.

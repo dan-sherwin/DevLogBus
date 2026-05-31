@@ -14,7 +14,7 @@ dev/browser-tap-store-package.sh dist/browser-tap-store
 The release build also creates the same Web Store-ready zip:
 
 ```bash
-VERSION=v0.1.0 ./dev/release-artifacts.sh dist/release
+VERSION=v1.2.0 ./dev/release-artifacts.sh dist/release
 ```
 
 The Browser Tap zip is intentionally different from the binary release zips:

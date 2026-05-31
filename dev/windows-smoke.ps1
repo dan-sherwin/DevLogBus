@@ -66,6 +66,7 @@ New-Item -ItemType Directory -Force $RunDir | Out-Null
 Write-Output "versions"
 & "$BinDir\devlogbusd.exe" version
 & "$BinDir\devlogbus.exe" version
+& "$BinDir\devlogbus-journal-bridge.exe" version
 
 Write-Output "endpoint"
 $defaultEndpoint = & "$BinDir\devlogbus.exe" endpoint

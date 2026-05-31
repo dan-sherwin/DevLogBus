@@ -12,6 +12,10 @@ and release notes.
 
 ![DevLogBus browser UI showing service, browser, and journal records](docs/assets/devlogbus-browser-ui.png)
 
+## License
+
+DevLogBus is released under the [MIT License](LICENSE).
+
 ## Layout
 
 ```text
@@ -248,9 +252,9 @@ extension zip, and writes `checksums.txt`.
 To smoke test the release package locally:
 
 ```bash
-VERSION=v1.1.0 ./dev/release-artifacts.sh
+VERSION=v1.2.0 ./dev/release-artifacts.sh
 ```
 
 When running for a tag, the Browser Tap manifest version must match the tag
-without the leading `v`, so `v1.1.0` expects the Chrome extension manifest to
-declare `1.1.0`.
+without the leading `v`, so `v1.2.0` expects the Chrome extension manifest to
+declare `1.2.0`.

@@ -6,17 +6,17 @@ OWNER="${OWNER:-dan-sherwin}"
 REPO="${REPO:-DevLogBus}"
 VERSION="${VERSION:-}"
 CHECKSUMS="${CHECKSUMS:-$ROOT/dist/release/checksums.txt}"
-FORMULA_LICENSE="${FORMULA_LICENSE:-:cannot_represent}"
+FORMULA_LICENSE="${FORMULA_LICENSE:-MIT}"
 OUT_FILE=""
 
 usage() {
 	cat <<'EOF'
-Usage: dev/homebrew-formula.sh --version v0.1.0 --checksums dist/release/checksums.txt [--out Formula/devlogbus.rb]
+Usage: dev/homebrew-formula.sh --version v1.2.0 --checksums dist/release/checksums.txt [--out Formula/devlogbus.rb]
 
 Environment:
   OWNER             GitHub owner or org. Default: dan-sherwin
   REPO              GitHub repository. Default: DevLogBus
-  FORMULA_LICENSE  Ruby formula license value. Default: :cannot_represent
+  FORMULA_LICENSE  Ruby formula license value. Default: MIT
 
 The checksum file must come from dev/release-artifacts.sh for the same version.
 EOF
@@ -123,7 +123,7 @@ $(formula_license_line)
     bin.install "devlogbus"
     bin.install "devlogbusd"
     bin.install "devlogbus-journal-bridge"
-    doc.install "README.md", "CHANGELOG.md"
+    doc.install "README.md", "CHANGELOG.md", "LICENSE"
     doc.install "docs"
   end
 
@@ -142,6 +142,7 @@ $(formula_license_line)
   test do
     assert_match version.to_s, shell_output("#{bin}/devlogbus version")
     assert_match version.to_s, shell_output("#{bin}/devlogbusd version")
+    assert_match version.to_s, shell_output("#{bin}/devlogbus-journal-bridge version")
   end
 end
 EOF

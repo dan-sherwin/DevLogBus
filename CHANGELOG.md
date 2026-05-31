@@ -1,5 +1,40 @@
 # Changelog
 
+## v1.2.0 - 2026-05-31
+
+This release prepares DevLogBus for broader public use.
+
+### Highlights
+
+- Added GitHub Actions release artifacts for macOS, Linux, Windows, checksums,
+  and the Browser Tap Chrome Web Store package.
+- Verified Linux and Windows release packages with platform smoke coverage.
+- Added public package-manager prep, including Homebrew formula generation.
+- Fixed release packaging scripts so relative output directories work reliably
+  in local runs and GitHub Actions.
+- Added Browser Tap controls for local host allow/deny filters, redaction, and
+  Chrome Web Store-safe localhost host permissions.
+- Added the publish-ready documentation set covering the daemon, browser UI,
+  TUI, CLI, HTTP API, wire protocol, Browser Tap, journal bridge, Go SDK,
+  security/privacy, configuration, compatibility, examples, and release notes.
+- Added public examples for Go `slog`, Node/TypeScript, Python, and browser
+  workflows.
+- Added GitHub issue templates, contribution notes, a security policy, and
+  browser UI screenshot/GIF assets.
+- Added the MIT License and release packaging support for carrying the license
+  into archives and generated package-manager formulas.
+
+## v1.1.0 - 2026-05-30
+
+### Highlights
+
+- Added public runtime controls for enabling, disabling, and retargeting
+  DevLogBus logging from Go applications.
+- Kept runtime controls independent from private application settings,
+  service-template, CLI-template, RPC, and business-specific packages.
+- Added package-level tests for runtime status, endpoint changes, and
+  non-blocking handler behavior.
+
 ## v1.0.0 - 2026-05-28
 
 Version 1 marks DevLogBus as a usable local-first development log bus for
@@ -26,4 +61,3 @@ real-time app debugging.
   in-app help with `?` or `h`.
 - Browser tap detach lifecycle records publish as `WARN` messages so the log
   stream clearly shows when Chrome-side capture has stopped.
-
