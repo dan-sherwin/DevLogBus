@@ -4,6 +4,20 @@
 
 No changes yet.
 
+## v1.3.1 - 2026-05-31
+
+This release aligns SDK package metadata and adds native package-manager
+distribution prep.
+
+### Highlights
+
+- Bumped SDK package metadata to `1.3.1` for npm, PyPI, crates.io, NuGet, and
+  Maven Central publishing.
+- Added Maven Central-ready JVM package metadata.
+- Added Linux native package prep for Debian/Ubuntu, RPM/DNF, and Alpine
+  package assets.
+- Added Homebrew and Scoop publishing prep for binary installs.
+
 ## v1.3.0 - 2026-05-31
 
 This release completes the first public multi-language SDK pass.

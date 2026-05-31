@@ -46,6 +46,8 @@ active debugging.
   expunge, replay, and socket envelopes.
 - [Examples](examples.md): Go, C, .NET/C#, Rust, Java/Kotlin, Node/TypeScript,
   Python, and browser workflow examples.
+- [SDK Publishing](sdk-publishing.md): npm, PyPI, crates.io, NuGet, and Maven
+  Central publishing notes.
 - [Configuration](configuration.md): public endpoint and source conventions.
 - [Security and Privacy](security-privacy.md): local-first behavior, Browser Tap
   data handling, safe usage, and exposure risks.

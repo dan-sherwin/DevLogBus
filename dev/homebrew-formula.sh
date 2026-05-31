@@ -11,7 +11,7 @@ OUT_FILE=""
 
 usage() {
 	cat <<'EOF'
-Usage: dev/homebrew-formula.sh --version v1.2.0 --checksums dist/release/checksums.txt [--out Formula/devlogbus.rb]
+Usage: dev/homebrew-formula.sh --version v1.3.1 --checksums dist/release/checksums.txt [--out Formula/devlogbus.rb]
 
 Environment:
   OWNER             GitHub owner or org. Default: dan-sherwin

@@ -265,9 +265,9 @@ extension zip, and writes `checksums.txt`.
 To smoke test the release package locally:
 
 ```bash
-VERSION=v1.3.0 ./dev/release-artifacts.sh
+VERSION=v1.3.1 ./dev/release-artifacts.sh
 ```
 
 When running for a tag, the Browser Tap manifest version must match the tag
-without the leading `v`, so `v1.3.0` expects the Chrome extension manifest to
-declare `1.3.0`.
+without the leading `v`, so `v1.3.1` expects the Chrome extension manifest to
+declare `1.3.1`.

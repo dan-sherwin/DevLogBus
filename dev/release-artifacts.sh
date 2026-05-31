@@ -95,6 +95,10 @@ package_browser_tap() {
 	VERSION="$VERSION" RELEASE_STRICT_VERSION="$RELEASE_STRICT_VERSION" "$ROOT/dev/browser-tap-store-package.sh" "$OUT_DIR"
 }
 
+package_linux_native() {
+	VERSION="$VERSION" "$ROOT/dev/linux-packages.sh" "$OUT_DIR"
+}
+
 checksum_file() {
 	local file="$1"
 
@@ -122,6 +126,7 @@ build_target linux arm64
 build_target windows amd64
 build_target windows arm64
 package_browser_tap
+package_linux_native
 write_checksums
 
 printf "Release artifacts written to %s\n" "$OUT_DIR"
