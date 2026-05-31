@@ -8,7 +8,8 @@ the three public binaries directly:
 - `devlogbus-journal-bridge`
 
 Homebrew is the first supported package-manager path. Release builds also
-produce native Linux packages and helper manifests for Scoop and WinGet.
+produce native Linux packages, a static Linux package repository for GitHub
+Pages, and helper manifests for Scoop and WinGet.
 
 ## Homebrew Tap
 
@@ -72,9 +73,58 @@ The packages install:
 /usr/bin/devlogbus-journal-bridge
 ```
 
-A signed APT or DNF repository can be added later if there is enough demand for
-automatic OS-package updates. For now, the GitHub release assets are the package
-source of truth.
+The Linux package repository generator turns these release assets into signed
+APT, RPM, and Alpine repositories that can be hosted from GitHub Pages:
+
+```bash
+dev/linux-package-repo.sh \
+  --version v1.3.1 \
+  --artifacts dist/release \
+  --out /path/to/devlogbus-linux-repo
+```
+
+The repository uses:
+
+- `keys/devlogbus-archive-key.asc` for APT and RPM metadata/package checks.
+- `keys/devlogbus@dan-sherwin.rsa.pub` for Alpine APK index checks.
+- `apt/` for Debian and Ubuntu.
+- `rpm/` for Fedora, RHEL, and openSUSE-style systems.
+- `alpine/` for Alpine Linux.
+
+The published GitHub Pages repository lives at:
+
+```text
+https://dan-sherwin.github.io/devlogbus-linux-repo
+```
+
+Users install from it with:
+
+```bash
+curl -fsSL https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlogbus-archive-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/devlogbus-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/devlogbus-archive-keyring.gpg] https://dan-sherwin.github.io/devlogbus-linux-repo/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
+sudo apt update
+sudo apt install devlogbus
+```
+
+```bash
+sudo curl -fsSL -o /etc/yum.repos.d/devlogbus.repo https://dan-sherwin.github.io/devlogbus-linux-repo/rpm/devlogbus.repo
+sudo rpm --import https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlogbus-archive-key.asc
+sudo dnf install devlogbus
+```
+
+For openSUSE, write the same repository file to
+`/etc/zypp/repos.d/devlogbus.repo`, import the same key, and run:
+
+```bash
+sudo zypper install devlogbus
+```
+
+```sh
+sudo wget -O /etc/apk/keys/devlogbus@dan-sherwin.rsa.pub https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlogbus@dan-sherwin.rsa.pub
+echo "https://dan-sherwin.github.io/devlogbus-linux-repo/alpine/$(apk --print-arch)" | sudo tee -a /etc/apk/repositories
+sudo apk update
+sudo apk add devlogbus
+```
 
 ## Scoop
 
