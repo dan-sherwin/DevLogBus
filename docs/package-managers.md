@@ -16,9 +16,9 @@ Create or update a tap repository such as `dan-sherwin/homebrew-devlogbus`, then
 generate the formula from release artifacts:
 
 ```bash
-VERSION=v1.2.0 ./dev/release-artifacts.sh dist/release
+VERSION=v1.3.0 ./dev/release-artifacts.sh dist/release
 dev/homebrew-formula.sh \
-  --version v1.2.0 \
+  --version v1.3.0 \
   --checksums dist/release/checksums.txt \
   --out /path/to/homebrew-devlogbus/Formula/devlogbus.rb
 ```
@@ -45,7 +45,7 @@ Override `FORMULA_LICENSE` only if the project license changes:
 
 ```bash
 FORMULA_LICENSE=Apache-2.0 dev/homebrew-formula.sh \
-  --version v1.2.0 \
+  --version v1.3.0 \
   --checksums dist/release/checksums.txt \
   --out /path/to/homebrew-devlogbus/Formula/devlogbus.rb
 ```

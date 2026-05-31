@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+No changes yet.
+
+## v1.3.0 - 2026-05-31
+
+This release completes the first public multi-language SDK pass.
+
 ### Highlights
 
 - Added C, .NET/C#, Rust, Java/Kotlin, Node/TypeScript, and Python SDK source
