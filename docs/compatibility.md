@@ -101,9 +101,10 @@ Compatibility promises:
   remain non-blocking by default.
 - Record filter and redaction hooks run before records leave the process.
 
-## Node/TypeScript And Python SDKs
+## HTTP SDKs
 
-The Node/TypeScript and Python SDKs publish through the public HTTP API.
+The C, .NET/C#, Rust, Java/Kotlin, Node/TypeScript, and Python SDKs publish
+through the public HTTP API.
 
 Compatibility promises:
 
@@ -123,6 +124,42 @@ Compatibility promises:
 - The SDK should keep accepting caller-provided `attrs_json`.
 - Default HTTP endpoint behavior should remain `http://127.0.0.1:7423`.
 - Filter and redactor callbacks run before records leave the process.
+
+## .NET/C# SDK
+
+The .NET SDK is an `HttpClient` publisher for the public HTTP API.
+
+Compatibility promises:
+
+- `DevLogBusRecord`, `DevLogBusClientOptions`, and `DevLogBusClient` should
+  remain source-compatible through v1.x.
+- New option properties may be added.
+- Default HTTP endpoint behavior should remain `http://127.0.0.1:7423`.
+- Filter and redactor delegates run before records leave the process.
+
+## Rust SDK
+
+The Rust SDK is a small dependency-free publisher for the public HTTP API.
+
+Compatibility promises:
+
+- `Record`, `ClientOptions`, `Client`, and publish result/error types should
+  remain source-compatible through v1.x.
+- New option fields may be added.
+- Default HTTP endpoint behavior should remain `http://127.0.0.1:7423`.
+- Filter and redactor hooks run before records leave the process.
+
+## Java/Kotlin SDK
+
+The Java/Kotlin SDK is a Java-first JVM publisher for the public HTTP API.
+
+Compatibility promises:
+
+- `DevLogBusRecord`, `DevLogBusClient.Options`, and `DevLogBusClient` should
+  remain source-compatible through v1.x.
+- New builder options may be added.
+- Default HTTP endpoint behavior should remain `http://127.0.0.1:7423`.
+- Filter and redactor hooks run before records leave the process.
 
 ## CLI
 

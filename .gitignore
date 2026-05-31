@@ -6,6 +6,10 @@ build/
 dist/
 cmd/*/build/
 sdk/*/build/
+sdk/*/target/
+sdk/*/Cargo.lock
+sdk/dotnet/**/bin/
+sdk/dotnet/**/obj/
 coverage.out
 
 # Node / React

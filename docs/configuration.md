@@ -55,7 +55,8 @@ DEVLOGBUS_ENDPOINT=127.0.0.1:7422 ./my-local-service
 Then the application passes that value into `pkg/runtime`, `pkg/sloghandler`, or
 `pkg/client`.
 
-For C, Node/TypeScript, and Python, pass the HTTP endpoint into the SDK client:
+For C, .NET/C#, Rust, Java/Kotlin, Node/TypeScript, and Python, pass the HTTP
+endpoint into the SDK client:
 
 ```text
 http://127.0.0.1:7423

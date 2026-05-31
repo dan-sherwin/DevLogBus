@@ -39,6 +39,60 @@ cmake --build sdk/c/build
 
 The example uses the C SDK source package under `sdk/c`.
 
+## .NET / C#
+
+The SDK source package lives under `sdk/dotnet`.
+
+Use the client directly from a .NET app:
+
+```csharp
+using DanSherwin.DevLogBus;
+
+var devlog = new DevLogBusClient(new DevLogBusClientOptions
+{
+    Source = "checkout_api",
+});
+
+await devlog.PublishMessageAsync(
+    "INFO",
+    "checkout started",
+    new Dictionary<string, object?> { ["requestId"] = "req-1" });
+```
+
+Run the SDK test program from the repository when the .NET SDK is installed:
+
+```bash
+dotnet run --project sdk/dotnet/DevLogBus.Sdk.Tests
+```
+
+## Rust
+
+See `sdk/rust/examples/basic.rs`.
+
+Run from the repository:
+
+```bash
+cargo run --manifest-path sdk/rust/Cargo.toml --example basic
+```
+
+The example uses the Rust SDK source package under `sdk/rust`.
+
+## Java/Kotlin
+
+See `sdk/jvm/examples/Basic.java`.
+
+Build and run from the repository:
+
+```bash
+mkdir -p sdk/jvm/build/classes
+javac -d sdk/jvm/build/classes \
+  $(find sdk/jvm/src/main/java sdk/jvm/examples -name '*.java')
+java -cp sdk/jvm/build/classes Basic
+```
+
+The example uses the Java-first JVM SDK source package under `sdk/jvm`. Kotlin
+code can call the same public classes directly.
+
 ## Node/TypeScript
 
 See `examples/node-typescript/devlogbus.ts`.

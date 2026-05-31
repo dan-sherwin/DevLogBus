@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>DanSherwin.DevLogBus.Sdk</PackageId>
+    <Title>DevLogBus SDK</Title>
+    <Description>.NET client SDK for publishing records to a local DevLogBus daemon.</Description>
+    <Authors>Dan Sherwin</Authors>
+    <RepositoryUrl>https://github.com/dan-sherwin/DevLogBus</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+</Project>

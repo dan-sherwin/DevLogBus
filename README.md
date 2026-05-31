@@ -38,8 +38,11 @@ extensions/
 
 sdk/
   c/                 Small C SDK for the HTTP API
+  dotnet/            .NET/C# SDK for the HTTP API
+  jvm/               Java/Kotlin SDK for the HTTP API
   node/              Node and TypeScript SDK for the HTTP API
   python/            Python SDK for the HTTP API
+  rust/              Rust SDK for the HTTP API
 
 pkg/
   protocol/          wire messages and filtering helpers
@@ -241,11 +244,11 @@ github.com/dan-sherwin/devlogbus/pkg/runtime
 github.com/dan-sherwin/devlogbus/pkg/sloghandler
 ```
 
-The C, Node/TypeScript, and Python SDK source packages live under `sdk/c`,
-`sdk/node`, and `sdk/python`. They publish through the HTTP API at
+The C, .NET/C#, Rust, Java/Kotlin, Node/TypeScript, and Python SDK source
+packages live under `sdk/`. They publish through the HTTP API at
 `http://127.0.0.1:7423` by default.
 
-Run the local Go quality gate with:
+Run the local quality gate with:
 
 ```bash
 ./dev/ci-local.sh

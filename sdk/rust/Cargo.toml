@@ -1,0 +1,15 @@
+[package]
+name = "devlogbus"
+version = "0.1.0"
+edition = "2021"
+description = "Rust SDK for publishing records to DevLogBus."
+license = "MIT"
+authors = ["Dan Sherwin"]
+
+[lib]
+name = "devlogbus"
+path = "src/lib.rs"
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"

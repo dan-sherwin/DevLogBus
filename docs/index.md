@@ -32,14 +32,20 @@ active debugging.
   packages.
 - [C SDK](c-sdk.md): small HTTP publisher with `libcurl`, CMake, filter, and
   redactor callbacks.
+- [.NET / C# SDK](dotnet-sdk.md): `HttpClient` publisher with structured attrs,
+  filters, redaction, and logger helper.
+- [Rust SDK](rust-sdk.md): dependency-free HTTP publisher with filter and
+  redactor hooks.
+- [Java/Kotlin SDK](java-kotlin-sdk.md): JVM HTTP publisher with filter,
+  redaction, and logger helper.
 - [Node And TypeScript SDK](node-typescript-sdk.md): HTTP client, logger helper,
   filters, and redaction.
 - [Python SDK](python-sdk.md): HTTP client, `logging` handler, filters, and
   redaction.
 - [HTTP API and Wire Protocol](http-api.md): record schema, HTTP endpoints, SSE,
   expunge, replay, and socket envelopes.
-- [Examples](examples.md): Go, Node/TypeScript, Python, and browser workflow
-  examples.
+- [Examples](examples.md): Go, C, .NET/C#, Rust, Java/Kotlin, Node/TypeScript,
+  Python, and browser workflow examples.
 - [Configuration](configuration.md): public endpoint and source conventions.
 - [Security and Privacy](security-privacy.md): local-first behavior, Browser Tap
   data handling, safe usage, and exposure risks.
@@ -65,8 +71,8 @@ The usual workflow is:
 
 1. Start `devlogbusd`.
 2. Open the embedded browser UI or terminal UI.
-3. Publish backend/service logs through the Go, C, Node/TypeScript, or Python
-   SDK, HTTP API, or CLI.
+3. Publish backend/service logs through the Go, C, .NET/C#, Rust, Java/Kotlin,
+   Node/TypeScript, or Python SDK, HTTP API, or CLI.
 4. Attach Browser Tap to the active Chrome tab when browser-side events matter.
 5. Split noisy streams by source, drill into browser source groups, hide or
    block noise, and expunge only when replay-buffer records should be deleted.
