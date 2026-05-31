@@ -141,6 +141,11 @@ Chrome's current listing guidance asks for at least one screenshot and prefers
 up to five. Capture `1280x800` PNG screenshots with square corners and no
 padding.
 
+Store icon:
+
+- `docs/assets/chrome-web-store/store-icon-128.png`: `128x128` PNG matching
+  the extension's packaged toolbar icon.
+
 Recommended shot list:
 
 1. `docs/assets/chrome-web-store/browser-tap-detached.png`: Browser Tap popup
