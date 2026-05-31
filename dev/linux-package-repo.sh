@@ -460,10 +460,17 @@ $BASE_URL
 ## Debian / Ubuntu
 
 \`\`\`bash
-curl -fsSL $BASE_URL/keys/devlogbus-archive-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/devlogbus-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/devlogbus-archive-keyring.gpg] $BASE_URL/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
+echo "deb [trusted=yes] $BASE_URL/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
 sudo apt update
 sudo apt install devlogbus
+\`\`\`
+
+The APT repository metadata is still signed. Users who want signature checks can
+install the key and switch the source to \`signed-by\`:
+
+\`\`\`bash
+curl -fsSL $BASE_URL/keys/devlogbus-archive-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/devlogbus-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/devlogbus-archive-keyring.gpg] $BASE_URL/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
 \`\`\`
 
 ## Fedora / RHEL / openSUSE
@@ -487,9 +494,16 @@ sudo rpm --import $BASE_URL/keys/devlogbus-archive-key.asc
 ## Alpine Linux
 
 \`\`\`sh
-sudo wget -O /etc/apk/keys/$ALPINE_KEY_NAME.rsa.pub $BASE_URL/keys/$ALPINE_KEY_NAME.rsa.pub
 echo "$BASE_URL/alpine/\$(apk --print-arch)" | sudo tee -a /etc/apk/repositories
 sudo apk update
+sudo apk add --allow-untrusted devlogbus
+\`\`\`
+
+The Alpine index is still signed. Users who want signature checks can install
+the public key and omit \`--allow-untrusted\`:
+
+\`\`\`sh
+sudo wget -O /etc/apk/keys/$ALPINE_KEY_NAME.rsa.pub $BASE_URL/keys/$ALPINE_KEY_NAME.rsa.pub
 sudo apk add devlogbus
 \`\`\`
 
@@ -524,10 +538,12 @@ EOF
   <p>This GitHub Pages repository serves signed DevLogBus packages for APT, RPM, and Alpine APK package managers.</p>
 
   <h2>Debian / Ubuntu</h2>
-  <pre><code>curl -fsSL $BASE_URL/keys/devlogbus-archive-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/devlogbus-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/devlogbus-archive-keyring.gpg] $BASE_URL/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
+  <pre><code>echo "deb [trusted=yes] $BASE_URL/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
 sudo apt update
 sudo apt install devlogbus</code></pre>
+  <p>The APT repository metadata is still signed. Users who want signature checks can install the key and switch the source to <code>signed-by</code>.</p>
+  <pre><code>curl -fsSL $BASE_URL/keys/devlogbus-archive-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/devlogbus-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/devlogbus-archive-keyring.gpg] $BASE_URL/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list</code></pre>
 
   <h2>Fedora / RHEL / openSUSE</h2>
   <pre><code>sudo curl -fsSL -o /etc/yum.repos.d/devlogbus.repo $BASE_URL/rpm/devlogbus.repo
@@ -537,9 +553,11 @@ sudo dnf install devlogbus</code></pre>
   <pre><code>sudo rpm --import $BASE_URL/keys/devlogbus-archive-key.asc</code></pre>
 
   <h2>Alpine Linux</h2>
-  <pre><code>sudo wget -O /etc/apk/keys/$ALPINE_KEY_NAME.rsa.pub $BASE_URL/keys/$ALPINE_KEY_NAME.rsa.pub
-echo "$BASE_URL/alpine/\$(apk --print-arch)" | sudo tee -a /etc/apk/repositories
+  <pre><code>echo "$BASE_URL/alpine/\$(apk --print-arch)" | sudo tee -a /etc/apk/repositories
 sudo apk update
+sudo apk add --allow-untrusted devlogbus</code></pre>
+  <p>The Alpine index is still signed. Users who want signature checks can install the public key and omit <code>--allow-untrusted</code>.</p>
+  <pre><code>sudo wget -O /etc/apk/keys/$ALPINE_KEY_NAME.rsa.pub $BASE_URL/keys/$ALPINE_KEY_NAME.rsa.pub
 sudo apk add devlogbus</code></pre>
 
   <h2>Keys</h2>

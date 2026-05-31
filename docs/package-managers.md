@@ -100,10 +100,17 @@ https://dan-sherwin.github.io/devlogbus-linux-repo
 Users install from it with:
 
 ```bash
-curl -fsSL https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlogbus-archive-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/devlogbus-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/devlogbus-archive-keyring.gpg] https://dan-sherwin.github.io/devlogbus-linux-repo/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
+echo "deb [trusted=yes] https://dan-sherwin.github.io/devlogbus-linux-repo/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
 sudo apt update
 sudo apt install devlogbus
+```
+
+The APT repository metadata is still signed. Users who want signature checks can
+install the key and switch the source to `signed-by`:
+
+```bash
+curl -fsSL https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlogbus-archive-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/devlogbus-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/devlogbus-archive-keyring.gpg] https://dan-sherwin.github.io/devlogbus-linux-repo/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
 ```
 
 ```bash
@@ -127,9 +134,16 @@ sudo rpm --import https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlog
 ```
 
 ```sh
-sudo wget -O /etc/apk/keys/devlogbus@dan-sherwin.rsa.pub https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlogbus@dan-sherwin.rsa.pub
 echo "https://dan-sherwin.github.io/devlogbus-linux-repo/alpine/$(apk --print-arch)" | sudo tee -a /etc/apk/repositories
 sudo apk update
+sudo apk add --allow-untrusted devlogbus
+```
+
+The Alpine index is still signed. Users who want signature checks can install
+the public key and omit `--allow-untrusted`:
+
+```sh
+sudo wget -O /etc/apk/keys/devlogbus@dan-sherwin.rsa.pub https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlogbus@dan-sherwin.rsa.pub
 sudo apk add devlogbus
 ```
 
