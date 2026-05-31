@@ -22,10 +22,34 @@ The JVM SDK includes:
 - filter hook
 - redactor hook
 - simple logger helper
-- source files that can be verified with `javac`
+- Maven Central publishing metadata
 
 It does not include async queues, socket protocol support, Gradle/Maven
-publishing metadata, or framework-specific logging adapters.
+build plugins, or framework-specific logging adapters.
+
+## Install
+
+Maven:
+
+```xml
+<dependency>
+  <groupId>io.github.dan-sherwin</groupId>
+  <artifactId>devlogbus</artifactId>
+  <version>1.3.1</version>
+</dependency>
+```
+
+Gradle Kotlin DSL:
+
+```kotlin
+implementation("io.github.dan-sherwin:devlogbus:1.3.1")
+```
+
+Gradle Groovy DSL:
+
+```groovy
+implementation 'io.github.dan-sherwin:devlogbus:1.3.1'
+```
 
 ## Build And Test
 

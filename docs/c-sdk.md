@@ -27,6 +27,11 @@ The C SDK includes:
 It does not include async queues, socket protocol support, a logging framework,
 custom allocators, or a JSON object builder.
 
+## Install
+
+The C SDK is source-distributed in the repository and release source archives.
+Build it into your native project with CMake and link `libcurl`.
+
 ## Build
 
 ```bash

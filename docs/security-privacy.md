@@ -40,6 +40,21 @@ devlogbusd run --endpoint 0.0.0.0:7422 --http 0.0.0.0:7423
 
 Never expose those listeners directly to the internet.
 
+## Verification And User Choice
+
+DevLogBus publishes checksums, package signing keys, and signed package metadata
+where practical. The project also documents the commands for users who want
+APT, RPM, or Alpine package signature checks.
+
+The default package install docs choose low-friction local developer setup. They
+do not force every operator through verification ceremony just to get a tool
+running on their own machine.
+
+That choice belongs to the person running the machine. If you want the
+higher-assurance path, use the documented verification steps. If you want the
+fast path, use it and own the tradeoff. DevLogBus gives you the tools; it does
+not pretend to know your risk tolerance better than you do.
+
 ## Browser Tap Capture Surface
 
 Browser Tap captures only after the user clicks Attach for the active tab.

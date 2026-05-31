@@ -26,6 +26,12 @@ The Rust SDK includes:
 It does not include async runtimes, TLS, socket protocol support, a logging
 facade adapter, or a JSON object builder.
 
+## Install
+
+```bash
+cargo add devlogbus
+```
+
 ## Build And Test
 
 ```bash

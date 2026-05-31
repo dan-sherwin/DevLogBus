@@ -17,6 +17,11 @@ The default endpoint is:
 http://127.0.0.1:7423
 ```
 
+## Install
+
+The C SDK is source-distributed in the repository and release source archives.
+Build it into your native project with CMake and link `libcurl`.
+
 ## Build
 
 ```bash

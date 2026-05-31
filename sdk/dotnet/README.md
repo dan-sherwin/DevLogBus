@@ -13,6 +13,12 @@ It publishes to the DevLogBus HTTP API using `HttpClient` and
 http://127.0.0.1:7423
 ```
 
+## Install
+
+```bash
+dotnet add package DanSherwin.DevLogBus.Sdk
+```
+
 ## Client
 
 ```csharp

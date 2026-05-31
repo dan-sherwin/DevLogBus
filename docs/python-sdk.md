@@ -13,13 +13,18 @@ The default endpoint is:
 http://127.0.0.1:7423
 ```
 
-Install from a checkout or release archive:
+Install from PyPI:
+
+```bash
+python3 -m pip install devlogbus
+```
+
+Install from a checkout or release source archive when developing the SDK
+itself:
 
 ```bash
 python3 -m pip install /path/to/DevLogBus/sdk/python
 ```
-
-The package name is `devlogbus` for PyPI publishing.
 
 ## Client
 

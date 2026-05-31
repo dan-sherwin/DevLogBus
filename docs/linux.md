@@ -7,6 +7,34 @@ release artifacts include:
 - `devlogbus`: CLI client and terminal UI.
 - `devlogbus-journal-bridge`: journald-to-DevLogBus bridge.
 
+## Install From A Package Repository
+
+APT:
+
+```bash
+echo "deb [trusted=yes] https://dan-sherwin.github.io/devlogbus-linux-repo/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
+sudo apt update
+sudo apt install devlogbus
+```
+
+DNF/RPM:
+
+```bash
+sudo curl -fsSL -o /etc/yum.repos.d/devlogbus.repo https://dan-sherwin.github.io/devlogbus-linux-repo/rpm/devlogbus.repo
+sudo dnf install devlogbus
+```
+
+Alpine:
+
+```bash
+echo "https://dan-sherwin.github.io/devlogbus-linux-repo/alpine/$(apk --print-arch)" | sudo tee -a /etc/apk/repositories
+sudo apk update
+sudo apk add --allow-untrusted devlogbus
+```
+
+See [Package Managers](package-managers.md) for Homebrew on Linux, direct DEB,
+RPM, and APK package installs, and optional package signature verification.
+
 ## Install From A Release Artifact
 
 Download the matching Linux archive from a GitHub release, then install the

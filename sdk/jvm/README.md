@@ -18,6 +18,30 @@ The default endpoint is:
 http://127.0.0.1:7423
 ```
 
+## Install
+
+Maven:
+
+```xml
+<dependency>
+  <groupId>io.github.dan-sherwin</groupId>
+  <artifactId>devlogbus</artifactId>
+  <version>1.3.1</version>
+</dependency>
+```
+
+Gradle Kotlin DSL:
+
+```kotlin
+implementation("io.github.dan-sherwin:devlogbus:1.3.1")
+```
+
+Gradle Groovy DSL:
+
+```groovy
+implementation 'io.github.dan-sherwin:devlogbus:1.3.1'
+```
+
 ## Build And Test
 
 ```bash

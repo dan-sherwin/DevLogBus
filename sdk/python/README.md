@@ -3,8 +3,11 @@
 Standard-library Python SDK for publishing records to the DevLogBus HTTP API.
 
 ```bash
-python3 -m pip install /path/to/DevLogBus/sdk/python
+python3 -m pip install devlogbus
 ```
+
+For SDK development from a checkout, use
+`python3 -m pip install /path/to/DevLogBus/sdk/python`.
 
 ```python
 from devlogbus import DevLogBusClient, redact_attrs

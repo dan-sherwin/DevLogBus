@@ -13,13 +13,18 @@ default endpoint is:
 http://127.0.0.1:7423
 ```
 
-Install from a checkout or release archive:
+Install from npm:
+
+```bash
+npm install @dan-sherwin/devlogbus
+```
+
+Install from a checkout or release source archive when developing the SDK
+itself:
 
 ```bash
 npm install /path/to/DevLogBus/sdk/node
 ```
-
-The package name is `@dan-sherwin/devlogbus` for npm publishing.
 
 ## Client
 

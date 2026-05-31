@@ -28,6 +28,12 @@ The .NET SDK includes:
 It does not include background queues, socket protocol support, hosted service
 registration, or a dependency on `Microsoft.Extensions.Logging`.
 
+## Install
+
+```bash
+dotnet add package DanSherwin.DevLogBus.Sdk
+```
+
 ## Build And Test
 
 ```bash

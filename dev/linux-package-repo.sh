@@ -457,6 +457,10 @@ Repository base URL:
 $BASE_URL
 \`\`\`
 
+The default install commands favor fast local developer setup. Signed metadata
+and keys are published for users who want the higher-assurance path, but
+verification is a choice. If you skip it, you own that tradeoff.
+
 ## Debian / Ubuntu
 
 \`\`\`bash
@@ -536,6 +540,7 @@ EOF
 <body>
   <h1>DevLogBus Linux Package Repository</h1>
   <p>This GitHub Pages repository serves signed DevLogBus packages for APT, RPM, and Alpine APK package managers.</p>
+  <p>The default install commands favor fast local developer setup. Signed metadata and keys are published for users who want the higher-assurance path, but verification is a choice. If you skip it, you own that tradeoff.</p>
 
   <h2>Debian / Ubuntu</h2>
   <pre><code>echo "deb [trusted=yes] $BASE_URL/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list

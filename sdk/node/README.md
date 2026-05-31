@@ -3,8 +3,11 @@
 Dependency-free Node SDK for publishing records to the DevLogBus HTTP API.
 
 ```bash
-npm install /path/to/DevLogBus/sdk/node
+npm install @dan-sherwin/devlogbus
 ```
+
+For SDK development from a checkout, use
+`npm install /path/to/DevLogBus/sdk/node`.
 
 ```ts
 import { DevLogBusClient, redactAttrs } from "@dan-sherwin/devlogbus";

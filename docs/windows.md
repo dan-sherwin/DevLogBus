@@ -3,6 +3,25 @@
 DevLogBus supports Windows as a local development platform for the daemon, CLI,
 terminal UI, HTTP API, embedded browser UI, and Browser Tap extension.
 
+## Install With Scoop
+
+```powershell
+scoop bucket add dan-sherwin https://github.com/dan-sherwin/scoop-bucket
+scoop install devlogbus
+```
+
+The Scoop manifest installs `devlogbusd.exe`, `devlogbus.exe`, and
+`devlogbus-journal-bridge.exe` from the release archives.
+
+## Install With WinGet
+
+The WinGet manifest has been prepared for the public WinGet package repository.
+After it is accepted upstream, install with:
+
+```powershell
+winget install DanSherwin.DevLogBus
+```
+
 ## Install From A Release Artifact
 
 Download the matching Windows zip from a GitHub release, then extract it to a

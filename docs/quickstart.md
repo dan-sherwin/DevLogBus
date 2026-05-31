@@ -1,11 +1,67 @@
 # Quickstart
 
-This quickstart uses release binaries. You do not need Go, Node, npm, or a
-source checkout.
+This quickstart uses release binaries or package managers. You do not need Go,
+Node, npm, or a source checkout.
 
-## Download
+## Install
 
-Download the matching archive from the GitHub release page:
+Homebrew on macOS or Linux:
+
+```bash
+brew install dan-sherwin/tap/devlogbus
+```
+
+Scoop on Windows:
+
+```powershell
+scoop bucket add dan-sherwin https://github.com/dan-sherwin/scoop-bucket
+scoop install devlogbus
+```
+
+Debian or Ubuntu:
+
+```bash
+echo "deb [trusted=yes] https://dan-sherwin.github.io/devlogbus-linux-repo/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
+sudo apt update
+sudo apt install devlogbus
+```
+
+Fedora, RHEL, Rocky Linux, or compatible systems:
+
+```bash
+sudo curl -fsSL -o /etc/yum.repos.d/devlogbus.repo https://dan-sherwin.github.io/devlogbus-linux-repo/rpm/devlogbus.repo
+sudo dnf install devlogbus
+```
+
+Alpine:
+
+```bash
+echo "https://dan-sherwin.github.io/devlogbus-linux-repo/alpine/$(apk --print-arch)" | sudo tee -a /etc/apk/repositories
+sudo apk update
+sudo apk add --allow-untrusted devlogbus
+```
+
+When the WinGet manifest has been accepted upstream, Windows users can also
+install with:
+
+```powershell
+winget install DanSherwin.DevLogBus
+```
+
+The package-manager commands install:
+
+```text
+devlogbusd
+devlogbus
+devlogbus-journal-bridge
+```
+
+See [Package Managers](package-managers.md) for package repositories, optional
+signature verification, and release packaging details.
+
+## Manual Archive Install
+
+You can also download the matching archive from the GitHub release page:
 
 ```text
 devlogbus_<version>_darwin_arm64.tar.gz
@@ -19,9 +75,7 @@ devlogbus_<version>_windows_amd64.zip
 Use the ARM archive on Apple Silicon Macs and ARM Windows VMs. Use the AMD64
 archive on Intel/AMD machines.
 
-## Install
-
-macOS or Linux:
+macOS or Linux manual install:
 
 ```bash
 mkdir -p ~/devlogbus
@@ -29,7 +83,7 @@ tar -xzf devlogbus_<version>_<os>_<arch>.tar.gz -C ~/devlogbus --strip-component
 export PATH="$HOME/devlogbus:$PATH"
 ```
 
-Windows PowerShell:
+Windows PowerShell manual install:
 
 ```powershell
 Expand-Archive .\devlogbus_<version>_windows_arm64.zip C:\DevLogBus

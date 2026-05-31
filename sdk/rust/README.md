@@ -16,6 +16,12 @@ The default endpoint is:
 http://127.0.0.1:7423
 ```
 
+## Install
+
+```bash
+cargo add devlogbus
+```
+
 ## Build And Test
 
 ```bash

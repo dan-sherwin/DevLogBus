@@ -7,8 +7,8 @@ It is not a retention stack, alerting system, metrics backend, or production obs
 ## Documentation
 
 Start with the [public documentation index](docs/index.md) for install,
-viewer, CLI, API, SDK, Browser Tap, journal bridge, security, compatibility,
-and release notes.
+package managers, viewer, CLI, API, SDK, Browser Tap, journal bridge,
+security, compatibility, and release notes.
 
 ![DevLogBus browser UI showing service, browser, and journal records](docs/assets/devlogbus-browser-ui.png)
 

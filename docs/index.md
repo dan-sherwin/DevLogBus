@@ -14,7 +14,7 @@ active debugging.
 
 ## Start Here
 
-- [Quickstart](quickstart.md): download binaries, run the daemon, open the UI,
+- [Quickstart](quickstart.md): install binaries, run the daemon, open the UI,
   emit a test record, and install Browser Tap without Go or Node.
 - [Daemon](daemon.md): runtime model, endpoints, settings, replay buffers,
   health/about endpoints, systemd, and troubleshooting.
@@ -30,6 +30,8 @@ active debugging.
   source mapping, replay, and endpoint handling.
 - [Go SDK](go-sdk.md): `protocol`, `client`, `sloghandler`, and runtime control
   packages.
+- [SDK Install](sdk-install.md): install commands for Go, C, .NET/C#, Rust,
+  Java/Kotlin, Node/TypeScript, and Python.
 - [C SDK](c-sdk.md): small HTTP publisher with `libcurl`, CMake, filter, and
   redactor callbacks.
 - [.NET / C# SDK](dotnet-sdk.md): `HttpClient` publisher with structured attrs,
@@ -58,8 +60,8 @@ active debugging.
 
 - [Linux](linux.md): Linux install, systemd, and journald bridge notes.
 - [Windows](windows.md): Windows install and platform limitations.
-- [Package Managers](package-managers.md): Homebrew formula generation and
-  future package-manager notes.
+- [Package Managers](package-managers.md): Homebrew, Linux package
+  repositories, Scoop, WinGet, and release packaging notes.
 - [Browser Tap Chrome Web Store Prep](browser-tap-store.md): listing text,
   privacy statement, permission explanations, screenshots, and reviewer notes.
 - [Browser Tap Privacy Policy](browser-tap-privacy.md): public privacy policy

@@ -7,9 +7,8 @@ the three public binaries directly:
 - `devlogbus`
 - `devlogbus-journal-bridge`
 
-Homebrew is the first supported package-manager path. Release builds also
-produce native Linux packages, a static Linux package repository for GitHub
-Pages, and helper manifests for Scoop and WinGet.
+Supported package-manager paths include Homebrew, native Linux packages and
+repositories, Scoop, and WinGet manifests.
 
 ## Homebrew Tap
 
@@ -97,7 +96,11 @@ The published GitHub Pages repository lives at:
 https://dan-sherwin.github.io/devlogbus-linux-repo
 ```
 
-Users install from it with:
+The default install commands favor fast local developer setup. Signed metadata
+and keys are published for users who want the higher-assurance path, but
+verification is a choice. If you skip it, you own that tradeoff.
+
+APT:
 
 ```bash
 echo "deb [trusted=yes] https://dan-sherwin.github.io/devlogbus-linux-repo/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
@@ -112,6 +115,8 @@ install the key and switch the source to `signed-by`:
 curl -fsSL https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlogbus-archive-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/devlogbus-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/devlogbus-archive-keyring.gpg] https://dan-sherwin.github.io/devlogbus-linux-repo/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
 ```
+
+DNF/RPM:
 
 ```bash
 sudo curl -fsSL -o /etc/yum.repos.d/devlogbus.repo https://dan-sherwin.github.io/devlogbus-linux-repo/rpm/devlogbus.repo
@@ -132,6 +137,8 @@ signature checks can import the key and set `gpgcheck=1` and
 ```bash
 sudo rpm --import https://dan-sherwin.github.io/devlogbus-linux-repo/keys/devlogbus-archive-key.asc
 ```
+
+Alpine:
 
 ```sh
 echo "https://dan-sherwin.github.io/devlogbus-linux-repo/alpine/$(apk --print-arch)" | sudo tee -a /etc/apk/repositories
