@@ -221,3 +221,21 @@ Run the local Go quality gate with:
 ```bash
 ./dev/ci-local.sh
 ```
+
+## Release Artifacts
+
+Tagged GitHub releases build the public artifacts with
+`.github/workflows/release.yml`. The workflow calls `./dev/release-artifacts.sh`,
+which builds the embedded browser UI, stamps version/commit/build date into the
+Go binaries, packages macOS/Linux/Windows archives, packages the Browser Tap
+extension zip, and writes `checksums.txt`.
+
+To smoke test the release package locally:
+
+```bash
+VERSION=v1.1.0 ./dev/release-artifacts.sh
+```
+
+When running for a tag, the Browser Tap manifest version must match the tag
+without the leading `v`, so `v1.1.0` expects the Chrome extension manifest to
+declare `1.1.0`.
