@@ -87,27 +87,7 @@ build_target() {
 }
 
 package_browser_tap() {
-	local ext_dir="$ROOT/extensions/chrome-devlogbus"
-	local manifest_version
-	local release_version="${VERSION#v}"
-	local artifact_base="devlogbus-browser-tap_${safe_version}"
-	local stage="$work_dir/$artifact_base"
-
-	manifest_version="$(node -e "console.log(require(process.argv[1]).version)" "$ext_dir/manifest.json")"
-	if [[ "$RELEASE_STRICT_VERSION" == "1" && "$manifest_version" != "$release_version" ]]; then
-		echo "browser tap manifest version $manifest_version does not match release version $release_version" >&2
-		exit 1
-	fi
-
-	mkdir -p "$stage/icons"
-	cp "$ext_dir/manifest.json" "$stage/"
-	cp "$ext_dir/service-worker.js" "$stage/"
-	cp "$ext_dir/popup.html" "$stage/"
-	cp "$ext_dir/popup.css" "$stage/"
-	cp "$ext_dir/popup.js" "$stage/"
-	cp "$ext_dir/icons/"*.png "$stage/icons/"
-
-	(cd "$work_dir" && zip -X -qr "$OUT_DIR/$artifact_base.zip" "$artifact_base")
+	VERSION="$VERSION" RELEASE_STRICT_VERSION="$RELEASE_STRICT_VERSION" "$ROOT/dev/browser-tap-store-package.sh" "$OUT_DIR"
 }
 
 checksum_file() {

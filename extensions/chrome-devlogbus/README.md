@@ -27,7 +27,25 @@ POST http://127.0.0.1:7423/api/records
 5. Select this directory.
 6. Open a page, click the DevLogBus extension, and Attach.
 
-The default endpoint is `http://127.0.0.1:7423`. Use the popup to point at another daemon HTTP address or to override the emitted source name.
+The default endpoint is `http://127.0.0.1:7423`. Use the popup to override the
+emitted source name or, in unpacked development builds with matching host
+permissions, point at another trusted daemon HTTP address.
+
+The Chrome Web Store package grants host access only for localhost daemon
+endpoints. If you need a remote Browser Tap target during private development,
+load the extension unpacked with a manifest that grants that specific trusted
+daemon host.
+
+## Store Package
+
+Create the Chrome Web Store upload zip with:
+
+```bash
+dev/browser-tap-store-package.sh dist/browser-tap-store
+```
+
+The generated zip has `manifest.json` at the archive root and excludes macOS
+metadata files.
 
 ## Scope And Redaction
 

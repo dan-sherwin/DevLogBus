@@ -115,6 +115,8 @@ same DevLogBus stream as backend service records.
 For Linux install, systemd, and journald bridge notes, see
 `docs/linux.md`.
 For Windows install and platform notes, see `docs/windows.md`.
+For package-manager release prep, see `docs/package-managers.md`.
+For Browser Tap Chrome Web Store prep, see `docs/browser-tap-store.md`.
 
 ## Interactive Viewers
 
