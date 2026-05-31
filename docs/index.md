@@ -48,6 +48,8 @@ active debugging.
   future package-manager notes.
 - [Browser Tap Chrome Web Store Prep](browser-tap-store.md): listing text,
   privacy statement, permission explanations, screenshots, and reviewer notes.
+- [Browser Tap Privacy Policy](browser-tap-privacy.md): public privacy policy
+  for the Chrome Web Store listing.
 
 ## Visual Overview
 

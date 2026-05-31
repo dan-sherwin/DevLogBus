@@ -84,6 +84,12 @@ DevLogBus daemon.
 
 ## Privacy Statement
 
+Privacy policy URL:
+
+```text
+https://dan-sherwin.github.io/DevLogBus/browser-tap-privacy.html
+```
+
 DevLogBus Browser Tap handles browser debugging data only when the user clicks
 Attach for the active tab. Depending on enabled capture toggles, records may
 include tab title, tab URL, console messages, runtime exceptions, browser log
@@ -137,13 +143,19 @@ padding.
 
 Recommended shot list:
 
-1. Browser Tap popup detached, showing endpoint, capture toggles, scope, and
-   redaction controls.
-2. Browser Tap popup attached to a local development tab.
-3. DevLogBus browser UI showing grouped Chrome records beside service logs.
-4. DevLogBus browser UI showing a network failure or HTTP 4xx/5xx record
-   selected with details visible.
-5. DevLogBus TUI showing the same Chrome source group for terminal users.
+1. `docs/assets/chrome-web-store/browser-tap-detached.png`: Browser Tap popup
+   detached, showing endpoint, capture toggles, scope, and redaction controls.
+2. `docs/assets/chrome-web-store/browser-tap-attached.png`: Browser Tap popup
+   attached to a local development tab.
+3. `docs/assets/chrome-web-store/devlogbus-ui-grouped.png`: DevLogBus browser
+   UI showing grouped Chrome records beside service logs.
+4. `docs/assets/chrome-web-store/devlogbus-ui-details.png`: DevLogBus browser
+   UI showing a network failure record selected with details visible.
+
+Small promotional tile:
+
+- `docs/assets/chrome-web-store/small-promo-tile.png`: `440x280` PNG for the
+  optional Chrome Web Store small promo tile.
 
 Do not include real secrets, customer hostnames, private URLs, or production
 data in screenshots.
