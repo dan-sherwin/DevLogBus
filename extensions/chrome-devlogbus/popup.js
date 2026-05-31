@@ -4,6 +4,11 @@ const captureConsoleInput = document.querySelector("#captureConsole");
 const captureRuntimeInput = document.querySelector("#captureRuntime");
 const captureLogInput = document.querySelector("#captureLog");
 const captureNetworkInput = document.querySelector("#captureNetwork");
+const allowPatternsInput = document.querySelector("#allowPatterns");
+const denyPatternsInput = document.querySelector("#denyPatterns");
+const redactAuthTokensInput = document.querySelector("#redactAuthTokens");
+const redactSensitiveParamsInput = document.querySelector("#redactSensitiveParams");
+const redactCookiesInput = document.querySelector("#redactCookies");
 const attachButton = document.querySelector("#attach");
 const detachButton = document.querySelector("#detach");
 const statePill = document.querySelector("#statePill");
@@ -31,6 +36,11 @@ for (const input of [
   captureRuntimeInput,
   captureLogInput,
   captureNetworkInput,
+  allowPatternsInput,
+  denyPatternsInput,
+  redactAuthTokensInput,
+  redactSensitiveParamsInput,
+  redactCookiesInput,
 ]) {
   input.addEventListener("change", () => {
     void saveOptions();
@@ -87,6 +97,11 @@ function renderStatus(status) {
   captureRuntimeInput.checked = options.captureRuntime !== false;
   captureLogInput.checked = options.captureLog !== false;
   captureNetworkInput.checked = options.captureNetwork !== false;
+  allowPatternsInput.value = options.allowPatterns ?? "";
+  denyPatternsInput.value = options.denyPatterns ?? "";
+  redactAuthTokensInput.checked = options.redactAuthTokens !== false;
+  redactSensitiveParamsInput.checked = options.redactSensitiveParams !== false;
+  redactCookiesInput.checked = options.redactCookies !== false;
 
   const attached = Boolean(status.attached);
   currentAttached = attached;
@@ -106,6 +121,11 @@ function readOptions() {
     captureRuntime: captureRuntimeInput.checked,
     captureLog: captureLogInput.checked,
     captureNetwork: captureNetworkInput.checked,
+    allowPatterns: allowPatternsInput.value.trim(),
+    denyPatterns: denyPatternsInput.value.trim(),
+    redactAuthTokens: redactAuthTokensInput.checked,
+    redactSensitiveParams: redactSensitiveParamsInput.checked,
+    redactCookies: redactCookiesInput.checked,
   };
 }
 

@@ -6,6 +6,11 @@ const DEFAULT_OPTIONS = {
   captureRuntime: true,
   captureLog: true,
   captureNetwork: true,
+  allowPatterns: "",
+  denyPatterns: "",
+  redactAuthTokens: true,
+  redactSensitiveParams: true,
+  redactCookies: true,
 };
 const MAX_ATTR_TEXT = 2000;
 const MAX_MESSAGE_TEXT = 4000;
@@ -82,6 +87,9 @@ async function attachActiveTab() {
   }
   if (isRestrictedURL(tab.url ?? "")) {
     throw new Error("Chrome does not allow debugger attachment to this page");
+  }
+  if (!isURLAllowed(tab.url ?? "", options)) {
+    throw new Error("Browser Tap filters exclude this page");
   }
 
   const debuggee = { tabId: tab.id };
@@ -162,14 +170,23 @@ async function handleDebuggerEvent(source, method, params) {
     return;
   }
   if (method === "Runtime.consoleAPICalled" && options.captureConsole) {
+    if (!isURLAllowed(topCallFrame(params.stackTrace)?.url || tabState.url, options)) {
+      return;
+    }
     enqueueRecord(recordFromConsole(tabState, source, params));
     return;
   }
   if (method === "Runtime.exceptionThrown" && options.captureRuntime) {
+    if (!isURLAllowed(params.exceptionDetails?.url || tabState.url, options)) {
+      return;
+    }
     enqueueRecord(recordFromException(tabState, source, params));
     return;
   }
   if (method === "Log.entryAdded" && options.captureLog) {
+    if (!isURLAllowed(params.entry?.url || tabState.url, options)) {
+      return;
+    }
     enqueueRecord(recordFromLogEntry(tabState, source, params.entry ?? {}));
     return;
   }
@@ -245,7 +262,7 @@ function makeTabState(tab, options) {
 
 function handleNetworkRequest(tabState, source, params) {
   const request = params.request ?? {};
-  if (!params.requestId || shouldSkipURL(request.url, tabState.options.endpoint)) {
+  if (!params.requestId || shouldSkipURL(request.url, tabState.options)) {
     return;
   }
   const entry = {
@@ -263,7 +280,7 @@ function handleNetworkRequest(tabState, source, params) {
     time: timestampFromWallTime(params.wallTime),
     level: "INFO",
     source: sourceName(tabState, entry.url),
-    message: `${entry.method} ${urlForMessage(entry.url)} requested`,
+    message: `${entry.method} ${urlForMessage(entry.url, tabState.options)} requested`,
     attrs: baseAttrs(tabState, source, {
       event: "network.request",
       requestId: params.requestId,
@@ -280,7 +297,7 @@ function handleNetworkRequest(tabState, source, params) {
 
 function recordFromNetworkResponse(tabState, source, params) {
   const response = params.response ?? {};
-  if (shouldSkipURL(response.url, tabState.options.endpoint)) {
+  if (shouldSkipURL(response.url, tabState.options)) {
     return null;
   }
   const request = tabState.requests.get(requestKey(source, params.requestId)) ?? {};
@@ -291,7 +308,7 @@ function recordFromNetworkResponse(tabState, source, params) {
   return {
     level,
     source: sourceName(tabState, response.url),
-    message: `${method} ${urlForMessage(response.url)} -> ${status || "response"}`,
+    message: `${method} ${urlForMessage(response.url, tabState.options)} -> ${status || "response"}`,
     attrs: baseAttrs(tabState, source, {
       event: "network.response",
       requestId: params.requestId,
@@ -311,14 +328,14 @@ function recordFromNetworkResponse(tabState, source, params) {
 
 function recordFromNetworkFailure(tabState, source, params) {
   const request = tabState.requests.get(requestKey(source, params.requestId)) ?? {};
-  if (shouldSkipURL(request.url, tabState.options.endpoint)) {
+  if (!request.url || shouldSkipURL(request.url, tabState.options)) {
     return null;
   }
   const target = urlParts(request.url);
   return {
     level: params.canceled ? "WARN" : "ERROR",
     source: sourceName(tabState, request.url),
-    message: `${request.method ?? "GET"} ${urlForMessage(request.url)} failed: ${params.errorText ?? "network error"}`,
+    message: `${request.method ?? "GET"} ${urlForMessage(request.url, tabState.options)} failed: ${params.errorText ?? "network error"}`,
     attrs: baseAttrs(tabState, source, {
       event: "network.failure",
       requestId: params.requestId,
@@ -335,14 +352,16 @@ function recordFromNetworkFailure(tabState, source, params) {
 }
 
 function recordFromConsole(tabState, source, params) {
-  const args = Array.isArray(params.args) ? params.args.map(remoteObjectText) : [];
+  const args = Array.isArray(params.args)
+    ? params.args.map((arg) => remoteObjectText(arg, tabState.options))
+    : [];
   const topFrame = topCallFrame(params.stackTrace);
   const type = params.type ?? "log";
   return {
     time: timestampFromMilliseconds(params.timestamp),
     level: consoleLevel(type),
     source: sourceName(tabState, topFrame?.url),
-    message: truncate(redactText(args.join(" ")), MAX_MESSAGE_TEXT) || `[console.${type}]`,
+    message: truncate(redactText(args.join(" "), tabState.options), MAX_MESSAGE_TEXT) || `[console.${type}]`,
     attrs: baseAttrs(tabState, source, {
       event: "console",
       consoleType: type,
@@ -362,11 +381,11 @@ function recordFromException(tabState, source, params) {
     time: new Date().toISOString(),
     level: "ERROR",
     source: sourceName(tabState, details.url),
-    message: truncate(redactText(exception.description ?? details.text ?? "Uncaught exception"), MAX_MESSAGE_TEXT),
+    message: truncate(redactText(exception.description ?? details.text ?? "Uncaught exception", tabState.options), MAX_MESSAGE_TEXT),
     attrs: baseAttrs(tabState, source, {
       event: "runtime.exception",
       text: details.text ?? "",
-      exception: remoteObjectText(exception),
+      exception: remoteObjectText(exception, tabState.options),
       url: details.url ?? "",
       lineNumber: details.lineNumber,
       columnNumber: details.columnNumber,
@@ -376,14 +395,14 @@ function recordFromException(tabState, source, params) {
 }
 
 function recordFromLogEntry(tabState, source, entry) {
-  if (shouldSkipURL(entry.url, tabState.options.endpoint)) {
+  if (shouldSkipURL(entry.url || tabState.url, tabState.options)) {
     return null;
   }
   return {
     time: timestampFromMilliseconds(entry.timestamp),
     level: logEntryLevel(entry.level),
     source: sourceName(tabState, entry.url),
-    message: truncate(redactText(entry.text ?? `[${entry.source ?? "browser"}]`), MAX_MESSAGE_TEXT),
+    message: truncate(redactText(entry.text ?? `[${entry.source ?? "browser"}]`, tabState.options), MAX_MESSAGE_TEXT),
     attrs: baseAttrs(tabState, source, {
       event: "browser.log",
       logSource: entry.source ?? "",
@@ -402,13 +421,13 @@ function makeLifecycleRecord(tab, options, action) {
     level: "INFO",
     source,
     message: `DevLogBus browser tap ${action}`,
-    attrs: {
+    attrs: sanitizeAttrs({
       event: `browser_tap.${action}`,
       sourceGroup: source,
       tabId: tab.id,
       title: tab.title ?? "",
       url: tab.url ?? "",
-    },
+    }, options),
   };
 }
 
@@ -421,7 +440,7 @@ async function makeDetachRecord(tabId, tabState, reason) {
     level: "WARN",
     source,
     message: `*** DEVLOGBUS BROWSER TAP DETACHED *** reason=${detachReason}; no more browser logs will arrive for this tab until reattached`,
-    attrs: {
+    attrs: sanitizeAttrs({
       event: "browser_tap.detached",
       detachReason,
       sourceGroup: source,
@@ -430,7 +449,7 @@ async function makeDetachRecord(tabId, tabState, reason) {
       url: state.url,
       attention: "debugger_detached",
       action: "reattach DevLogBus Browser Tap to resume browser capture",
-    },
+    }, state.options),
   };
 }
 
@@ -513,6 +532,11 @@ function normalizeOptions(options) {
     captureRuntime: options.captureRuntime !== false,
     captureLog: options.captureLog !== false,
     captureNetwork: options.captureNetwork !== false,
+    allowPatterns: normalizePatternText(options.allowPatterns),
+    denyPatterns: normalizePatternText(options.denyPatterns),
+    redactAuthTokens: options.redactAuthTokens !== false,
+    redactSensitiveParams: options.redactSensitiveParams !== false,
+    redactCookies: options.redactCookies !== false,
   };
 }
 
@@ -546,31 +570,40 @@ function baseAttrs(tabState, source, attrs) {
     tabURL: tabState.url,
     debuggerSessionId: source.sessionId ?? "",
     devlogbusPublisher: "chrome-extension",
-  });
+  }, tabState.options);
 }
 
-function sanitizeAttrs(attrs) {
+function sanitizeAttrs(attrs, options) {
   const clean = {};
   for (const [key, value] of Object.entries(attrs)) {
-    if (value == null || value === "") {
+    const cleanValue = sanitizeValue(value, options);
+    if (cleanValue == null || cleanValue === "") {
       continue;
     }
-    if (typeof value === "string") {
-      clean[key] = truncate(redactText(value), MAX_ATTR_TEXT);
-      continue;
-    }
-    if (Array.isArray(value)) {
-      clean[key] = value.map((item) =>
-        typeof item === "string" ? truncate(redactText(item), MAX_ATTR_TEXT) : item,
-      );
-      continue;
-    }
-    clean[key] = value;
+    clean[key] = cleanValue;
   }
   return clean;
 }
 
-function remoteObjectText(value) {
+function sanitizeValue(value, options) {
+  if (value == null || value === "") {
+    return null;
+  }
+  if (typeof value === "string") {
+    return truncate(redactText(value, options), MAX_ATTR_TEXT);
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => sanitizeValue(item, options))
+      .filter((item) => item != null && item !== "");
+  }
+  if (typeof value === "object") {
+    return sanitizeAttrs(value, options);
+  }
+  return value;
+}
+
+function remoteObjectText(value, options) {
   if (value == null) {
     return "";
   }
@@ -579,16 +612,16 @@ function remoteObjectText(value) {
   }
   if (Object.prototype.hasOwnProperty.call(value, "value")) {
     if (typeof value.value === "string") {
-      return truncate(redactText(value.value), MAX_ATTR_TEXT);
+      return truncate(redactText(value.value, options), MAX_ATTR_TEXT);
     }
     try {
-      return truncate(JSON.stringify(value.value), MAX_ATTR_TEXT);
+      return truncate(redactText(JSON.stringify(value.value), options), MAX_ATTR_TEXT);
     } catch {
       return String(value.value);
     }
   }
   if (value.description != null) {
-    return truncate(redactText(String(value.description)), MAX_ATTR_TEXT);
+    return truncate(redactText(String(value.description), options), MAX_ATTR_TEXT);
   }
   return String(value.type ?? "");
 }
@@ -649,15 +682,15 @@ function trimRequestMap(requests) {
   }
 }
 
-function urlForMessage(rawURL) {
+function urlForMessage(rawURL, options) {
   if (!rawURL) {
     return "(unknown)";
   }
   try {
     const url = new URL(rawURL);
-    return `${url.pathname || "/"}${url.search}`;
+    return redactText(`${url.pathname || "/"}${url.search}`, options);
   } catch {
-    return rawURL;
+    return redactText(rawURL, options);
   }
 }
 
@@ -666,19 +699,88 @@ function urlParts(rawURL) {
     const url = new URL(rawURL);
     return {
       host: url.host,
+      hostname: url.hostname,
       origin: url.origin,
       path: `${url.pathname || "/"}${url.search}`,
     };
   } catch {
-    return { host: "", origin: "", path: rawURL ?? "" };
+    return { host: "", hostname: "", origin: "", path: rawURL ?? "" };
   }
 }
 
-function shouldSkipURL(rawURL, endpoint) {
+function shouldSkipURL(rawURL, options) {
   if (!rawURL) {
     return false;
   }
-  return rawURL.startsWith(normalizeEndpoint(endpoint));
+  return rawURL.startsWith(normalizeEndpoint(options.endpoint)) || !isURLAllowed(rawURL, options);
+}
+
+function isURLAllowed(rawURL, options) {
+  if (!rawURL) {
+    return true;
+  }
+  const denyPatterns = patternList(options.denyPatterns);
+  if (denyPatterns.some((pattern) => matchesURLPattern(rawURL, pattern))) {
+    return false;
+  }
+  const allowPatterns = patternList(options.allowPatterns);
+  if (allowPatterns.length === 0) {
+    return true;
+  }
+  return allowPatterns.some((pattern) => matchesURLPattern(rawURL, pattern));
+}
+
+function normalizePatternText(value) {
+  return String(value ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== "")
+    .join("\n");
+}
+
+function patternList(value) {
+  return normalizePatternText(value)
+    .split(/\n/)
+    .map((line) => line.replace(/\s+#.*$/, "").trim())
+    .filter((line) => line !== "" && !line.startsWith("#"));
+}
+
+function matchesURLPattern(rawURL, pattern) {
+  const normalizedPattern = String(pattern ?? "").trim().toLowerCase();
+  if (normalizedPattern === "") {
+    return false;
+  }
+
+  const parts = urlParts(rawURL);
+  const fullURL = String(rawURL ?? "").toLowerCase();
+  const candidates = [
+    fullURL,
+    parts.host.toLowerCase(),
+    parts.hostname.toLowerCase(),
+    parts.origin.toLowerCase(),
+  ].filter(Boolean);
+
+  if (normalizedPattern.includes("*") || normalizedPattern.includes("?")) {
+    const regex = globRegex(normalizedPattern);
+    return candidates.some((candidate) => regex.test(candidate));
+  }
+
+  if (normalizedPattern.includes("://") || normalizedPattern.includes("/")) {
+    return fullURL === normalizedPattern || fullURL.startsWith(normalizedPattern);
+  }
+
+  return candidates.some((candidate) => (
+    candidate === normalizedPattern ||
+    candidate.endsWith(`.${normalizedPattern}`)
+  ));
+}
+
+function globRegex(pattern) {
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/\?/g, ".");
+  return new RegExp(`^${escaped}$`, "i");
 }
 
 function topCallFrame(stackTrace) {
@@ -702,10 +804,51 @@ function truncate(value, max) {
   return `${text.slice(0, max - 1)}...`;
 }
 
-function redactText(value) {
-  return String(value)
-    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [redacted]")
-    .replace(/((?:password|passwd|token|secret|api[_-]?key)=)[^&\s]+/gi, "$1[redacted]");
+function redactText(value, options = DEFAULT_OPTIONS) {
+  let text = redactURL(String(value), options);
+  if (options.redactAuthTokens !== false) {
+    text = text
+      .replace(/(^|[\r\n])(\s*(?:authorization|x-api-key)\s*:\s*)[^\r\n]+/gi, "$1$2[redacted]")
+      .replace(/((?:authorization|x-api-key)\s*=\s*)[^\s,;]+/gi, "$1[redacted]")
+      .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [redacted]")
+      .replace(/Basic\s+[A-Za-z0-9+/=-]+/gi, "Basic [redacted]");
+  }
+  if (options.redactSensitiveParams !== false) {
+    text = text.replace(/((?:password|passwd|pwd|token|secret|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|id[_-]?token|session[_-]?id|sid|jwt|signature|sig)=)[^&\s]+/gi, "$1[redacted]");
+  }
+  if (options.redactCookies !== false) {
+    text = text
+      .replace(/(^|[\s;])(\s*(?:cookie|set-cookie)\s*:\s*)[^\r\n;]+/gi, "$1$2[redacted]")
+      .replace(/(document\.cookie\s*=\s*)[^;\r\n]+/gi, "$1[redacted]");
+  }
+  return text;
+}
+
+function redactURL(value, options = DEFAULT_OPTIONS) {
+  if (options.redactSensitiveParams === false && options.redactAuthTokens === false) {
+    return value;
+  }
+  try {
+    const url = new URL(value);
+    if (options.redactAuthTokens !== false && (url.username || url.password)) {
+      url.username = "redacted";
+      url.password = "";
+    }
+    if (options.redactSensitiveParams !== false) {
+      for (const key of [...url.searchParams.keys()]) {
+        if (isSensitiveParamName(key)) {
+          url.searchParams.set(key, "redacted");
+        }
+      }
+    }
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
+function isSensitiveParamName(name) {
+  return /^(password|passwd|pwd|token|secret|api[_-]?key|apikey|access[_-]?token|refresh[_-]?token|id[_-]?token|session[_-]?id|sid|jwt|signature|sig)$/i.test(name);
 }
 
 function tabSummary(tab) {

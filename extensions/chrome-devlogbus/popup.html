@@ -37,6 +37,25 @@
         <label class="check"><input id="captureNetwork" type="checkbox" /> Network</label>
       </fieldset>
 
+      <fieldset>
+        <legend>Scope</legend>
+        <label>
+          Allow patterns
+          <textarea id="allowPatterns" rows="3" spellcheck="false" placeholder="*.example.com"></textarea>
+        </label>
+        <label>
+          Deny patterns
+          <textarea id="denyPatterns" rows="3" spellcheck="false" placeholder="analytics.*"></textarea>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Redact</legend>
+        <label class="check"><input id="redactAuthTokens" type="checkbox" /> Authorization tokens</label>
+        <label class="check"><input id="redactSensitiveParams" type="checkbox" /> Sensitive URL params</label>
+        <label class="check"><input id="redactCookies" type="checkbox" /> Cookies</label>
+      </fieldset>
+
       <div class="actions">
         <button id="attach" type="button">Attach</button>
         <button id="detach" type="button">Detach</button>

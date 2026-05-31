@@ -29,6 +29,25 @@ POST http://127.0.0.1:7423/api/records
 
 The default endpoint is `http://127.0.0.1:7423`. Use the popup to point at another daemon HTTP address or to override the emitted source name.
 
+## Scope And Redaction
+
+The popup can limit capture with allow and deny patterns. Add one host or URL
+pattern per line. Blank allow patterns mean any page is allowed; deny patterns
+always win.
+
+Examples:
+
+```text
+localhost:5173
+*.example.com
+https://api.example.com/*
+```
+
+The browser tap also redacts common secrets before publishing records. The
+popup controls authorization-token redaction, sensitive URL parameter redaction,
+and cookie redaction. These controls affect messages, attributes, tab URLs,
+stack-frame URLs, and network URLs before records are sent to DevLogBus.
+
 ## Source Names
 
 Without an override, records use:

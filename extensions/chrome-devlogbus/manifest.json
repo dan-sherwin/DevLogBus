@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "DevLogBus Browser Tap",
   "description": "Publishes Chrome tab debugging events to a local DevLogBus daemon.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "minimum_chrome_version": "125",
   "permissions": ["activeTab", "debugger", "storage", "tabs"],
   "host_permissions": ["<all_urls>"],
