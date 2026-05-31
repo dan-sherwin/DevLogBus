@@ -132,7 +132,7 @@ Override `FORMULA_LICENSE` only if the project license changes:
 FORMULA_LICENSE=Apache-2.0 dev/homebrew-formula.sh \
   --version v1.3.1 \
   --checksums dist/release/checksums.txt \
-  --out /path/to/homebrew-devlogbus/Formula/devlogbus.rb
+  --out /path/to/homebrew-tap/Formula/devlogbus.rb
 ```
 
 ## Windows Release Archive Names

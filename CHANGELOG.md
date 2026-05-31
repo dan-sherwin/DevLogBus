@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-No changes yet.
+- Fixed a stale Homebrew tap path in the package-manager docs.
+- Set the release workflow to use the Node 24 JavaScript action runtime.
 
 ## v1.3.1 - 2026-05-31
 
