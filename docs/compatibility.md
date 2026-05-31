@@ -112,6 +112,18 @@ Compatibility promises:
 - Default HTTP endpoint behavior should remain `http://127.0.0.1:7423`.
 - Record filter and redaction hooks run before records leave the process.
 
+## C SDK
+
+The C SDK is a small `libcurl` publisher for the public HTTP API.
+
+Compatibility promises:
+
+- `devlogbus_record_t`, `devlogbus_options_t`, and the publish functions should
+  remain source-compatible through v1.x.
+- The SDK should keep accepting caller-provided `attrs_json`.
+- Default HTTP endpoint behavior should remain `http://127.0.0.1:7423`.
+- Filter and redactor callbacks run before records leave the process.
+
 ## CLI
 
 The main public commands are:

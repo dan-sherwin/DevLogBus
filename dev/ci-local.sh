@@ -8,11 +8,18 @@ command -v npm >/dev/null 2>&1 || {
   echo "npm is required to build the embedded devlogbusd UI"
   exit 1
 }
+command -v cmake >/dev/null 2>&1 || {
+  echo "cmake is required to build the C SDK"
+  exit 1
+}
 
 export GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.3}"
 
 npm --prefix internal/devlogbusd/ui ci
 npm --prefix internal/devlogbusd/ui run build
+cmake -S sdk/c -B sdk/c/build -DCMAKE_BUILD_TYPE=Release
+cmake --build sdk/c/build
+ctest --test-dir sdk/c/build --output-on-failure
 npm --prefix sdk/node test
 python3 -m unittest discover -s sdk/python/tests
 

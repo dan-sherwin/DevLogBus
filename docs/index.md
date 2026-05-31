@@ -30,6 +30,8 @@ active debugging.
   source mapping, replay, and endpoint handling.
 - [Go SDK](go-sdk.md): `protocol`, `client`, `sloghandler`, and runtime control
   packages.
+- [C SDK](c-sdk.md): small HTTP publisher with `libcurl`, CMake, filter, and
+  redactor callbacks.
 - [Node And TypeScript SDK](node-typescript-sdk.md): HTTP client, logger helper,
   filters, and redaction.
 - [Python SDK](python-sdk.md): HTTP client, `logging` handler, filters, and
@@ -63,8 +65,8 @@ The usual workflow is:
 
 1. Start `devlogbusd`.
 2. Open the embedded browser UI or terminal UI.
-3. Publish backend/service logs through the Go, Node/TypeScript, or Python SDK,
-   HTTP API, or CLI.
+3. Publish backend/service logs through the Go, C, Node/TypeScript, or Python
+   SDK, HTTP API, or CLI.
 4. Attach Browser Tap to the active Chrome tab when browser-side events matter.
 5. Split noisy streams by source, drill into browser source groups, hide or
    block noise, and expunge only when replay-buffer records should be deleted.

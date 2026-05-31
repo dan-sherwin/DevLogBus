@@ -25,6 +25,20 @@ go run ./examples/go-slog
 The example uses `pkg/sloghandler` so normal `log/slog` records publish to
 DevLogBus without changing call sites.
 
+## C
+
+See `sdk/c/examples/basic.c`.
+
+Build and run from the repository:
+
+```bash
+cmake -S sdk/c -B sdk/c/build
+cmake --build sdk/c/build
+./sdk/c/build/devlogbus_c_basic
+```
+
+The example uses the C SDK source package under `sdk/c`.
+
 ## Node/TypeScript
 
 See `examples/node-typescript/devlogbus.ts`.

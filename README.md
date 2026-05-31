@@ -37,6 +37,7 @@ extensions/
   chrome-devlogbus/  Chrome extension that publishes browser debug events
 
 sdk/
+  c/                 Small C SDK for the HTTP API
   node/              Node and TypeScript SDK for the HTTP API
   python/            Python SDK for the HTTP API
 
@@ -240,9 +241,9 @@ github.com/dan-sherwin/devlogbus/pkg/runtime
 github.com/dan-sherwin/devlogbus/pkg/sloghandler
 ```
 
-The Node/TypeScript and Python SDK source packages live under `sdk/node` and
-`sdk/python`. They publish through the HTTP API at `http://127.0.0.1:7423` by
-default.
+The C, Node/TypeScript, and Python SDK source packages live under `sdk/c`,
+`sdk/node`, and `sdk/python`. They publish through the HTTP API at
+`http://127.0.0.1:7423` by default.
 
 Run the local Go quality gate with:
 

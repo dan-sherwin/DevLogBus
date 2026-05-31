@@ -5,6 +5,7 @@ bin/
 build/
 dist/
 cmd/*/build/
+sdk/*/build/
 coverage.out
 
 # Node / React
