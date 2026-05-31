@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Highlights
+
+- Added Node/TypeScript and Python SDK source packages for publishing records
+  through the DevLogBus HTTP API.
+- Added SDK-side record filter and redaction hooks for Go, Node/TypeScript, and
+  Python publishers.
+- Added SDK docs, examples, and local test coverage for the new SDK packages.
+
 ## v1.2.0 - 2026-05-31
 
 This release prepares DevLogBus for broader public use.

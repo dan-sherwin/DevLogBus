@@ -29,13 +29,13 @@ DevLogBus without changing call sites.
 
 See `examples/node-typescript/devlogbus.ts`.
 
-Run with a TypeScript runner or copy the same fetch call into an application:
+Run with a TypeScript runner:
 
 ```bash
 npx tsx examples/node-typescript/devlogbus.ts
 ```
 
-The example posts JSON records directly to `/api/records`.
+The example uses the SDK source package under `sdk/node`.
 
 ## Python
 
@@ -47,7 +47,7 @@ Run:
 python3 examples/python/devlogbus_example.py
 ```
 
-The example uses only the Python standard library.
+The example uses the SDK source package under `sdk/python`.
 
 ## Browser/React Workflow
 

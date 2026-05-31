@@ -55,6 +55,12 @@ DEVLOGBUS_ENDPOINT=127.0.0.1:7422 ./my-local-service
 Then the application passes that value into `pkg/runtime`, `pkg/sloghandler`, or
 `pkg/client`.
 
+For Node/TypeScript and Python, pass the HTTP endpoint into the SDK client:
+
+```text
+http://127.0.0.1:7423
+```
+
 Avoid hidden package-level environment reads in reusable libraries. Public users
 should be able to see where the endpoint comes from.
 

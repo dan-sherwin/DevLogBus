@@ -85,6 +85,10 @@ Redaction is a safety net, not a guarantee. Console messages, exception text,
 URLs, and custom attributes can still contain secrets if an application logs
 them in unusual shapes.
 
+The Go, Node/TypeScript, and Python SDKs also expose record filter and redaction
+hooks. Use those hooks at application boundaries to drop noisy records or redact
+known sensitive attributes before they leave the process.
+
 ## Safe Usage Recommendations
 
 - Keep listeners on loopback unless actively troubleshooting across trusted

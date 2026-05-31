@@ -99,6 +99,18 @@ Compatibility promises:
 - Existing behavior for default endpoints should remain platform-stable.
 - Queueing and reconnect behavior may be tuned, but application logging should
   remain non-blocking by default.
+- Record filter and redaction hooks run before records leave the process.
+
+## Node/TypeScript And Python SDKs
+
+The Node/TypeScript and Python SDKs publish through the public HTTP API.
+
+Compatibility promises:
+
+- The SDKs should preserve the public record shape used by `/api/records`.
+- New optional client options may be added.
+- Default HTTP endpoint behavior should remain `http://127.0.0.1:7423`.
+- Record filter and redaction hooks run before records leave the process.
 
 ## CLI
 

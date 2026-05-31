@@ -82,6 +82,7 @@ build_target() {
 	mkdir -p "$stage"
 	cp "$ROOT/README.md" "$ROOT/CHANGELOG.md" "$ROOT/LICENSE" "$stage/"
 	cp -R "$ROOT/docs" "$stage/"
+	cp -R "$ROOT/sdk" "$stage/"
 
 	build_binary "$goos" "$goarch" "devlogbusd" "./cmd/devlogbusd" "github.com/dan-sherwin/devlogbus/internal/devlogbusd/app/consts" "$stage"
 	build_binary "$goos" "$goarch" "devlogbus" "./cmd/devlogbus" "github.com/dan-sherwin/devlogbus/internal/devlogbus/app/consts" "$stage"

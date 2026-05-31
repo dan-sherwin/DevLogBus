@@ -36,6 +36,8 @@ type Options struct {
 	Network    string
 	Address    string
 	SocketPath string
+	Filter     RecordFilter
+	Redactor   RecordRedactor
 }
 
 // Client publishes records to and subscribes records from a DevLogBus broker.
@@ -44,6 +46,8 @@ type Client struct {
 	Network    string
 	Address    string
 	SocketPath string
+	Filter     RecordFilter
+	Redactor   RecordRedactor
 }
 
 // ResolvedEndpoint is a concrete broker transport endpoint.
@@ -55,8 +59,10 @@ type ResolvedEndpoint struct {
 
 // Publisher is a persistent broker publisher.
 type Publisher struct {
-	conn    net.Conn
-	encoder *json.Encoder
+	conn     net.Conn
+	encoder  *json.Encoder
+	filter   RecordFilter
+	redactor RecordRedactor
 }
 
 // Subscription is an active broker subscription.
@@ -95,9 +101,11 @@ func NewWithOptions(options Options) *Client {
 				Network:    resolved.Network,
 				Address:    resolved.Address,
 				SocketPath: resolved.SocketPath,
+				Filter:     options.Filter,
+				Redactor:   options.Redactor,
 			}
 		}
-		return &Client{Endpoint: endpoint}
+		return &Client{Endpoint: endpoint, Filter: options.Filter, Redactor: options.Redactor}
 	}
 
 	network := strings.TrimSpace(options.Network)
@@ -111,6 +119,8 @@ func NewWithOptions(options Options) *Client {
 				Network:    resolved.Network,
 				Address:    resolved.Address,
 				SocketPath: resolved.SocketPath,
+				Filter:     options.Filter,
+				Redactor:   options.Redactor,
 			}
 		}
 	}
@@ -136,6 +146,8 @@ func NewWithOptions(options Options) *Client {
 		Network:    network,
 		Address:    address,
 		SocketPath: socketPath,
+		Filter:     options.Filter,
+		Redactor:   options.Redactor,
 	}
 }
 
@@ -195,7 +207,12 @@ func (c *Client) OpenPublisher(ctx context.Context) (*Publisher, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Publisher{conn: conn, encoder: json.NewEncoder(conn)}, nil
+	return &Publisher{
+		conn:     conn,
+		encoder:  json.NewEncoder(conn),
+		filter:   c.Filter,
+		redactor: c.Redactor,
+	}, nil
 }
 
 // Publish sends one structured record over the persistent publisher connection.
@@ -203,8 +220,12 @@ func (p *Publisher) Publish(ctx context.Context, record protocol.Record) error {
 	if p == nil || p.conn == nil || p.encoder == nil {
 		return errors.New("publisher is closed")
 	}
-	if err := validateRecord(&record); err != nil {
+	record, publish, err := prepareRecord(record, p.filter, p.redactor)
+	if err != nil {
 		return err
+	}
+	if !publish {
+		return nil
 	}
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = p.conn.SetWriteDeadline(deadline)

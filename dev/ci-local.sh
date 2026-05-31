@@ -13,6 +13,8 @@ export GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.3}"
 
 npm --prefix internal/devlogbusd/ui ci
 npm --prefix internal/devlogbusd/ui run build
+npm --prefix sdk/node test
+python3 -m unittest discover -s sdk/python/tests
 
 go mod tidy
 go build ./...

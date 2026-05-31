@@ -51,6 +51,8 @@ Behavior:
 - Publishing uses a persistent broker connection.
 - Connection failures close the current publisher and reconnect on a later
   record.
+- Optional filter and redaction hooks run before a queued record leaves the
+  process.
 
 ## Runtime Controls
 
@@ -122,6 +124,32 @@ count, err := broker.Expunge(ctx, "custom_tool")
 ```
 
 An empty source expunges all daemon replay records.
+
+## Filters And Redaction
+
+Use SDK hooks when an application needs to drop records or redact known
+sensitive attributes before records leave the process.
+
+```go
+logger := slog.New(sloghandler.New(sloghandler.Options{
+    Source:   "checkout_svc",
+    Filter:   client.DropSources("noisy_worker"),
+    Redactor: client.RedactAttrs("authorization", "token", "request.apiKey"),
+}))
+```
+
+`client.RedactAttrs` matches either an attribute key or dotted nested path and
+replaces matching values with `[REDACTED]`.
+
+The same hooks are available through `pkg/client` and `pkg/runtime` options:
+
+```go
+devlog := runtime.New(runtime.Options{
+    Enabled:  true,
+    Source:   "checkout_svc",
+    Redactor: client.RedactAttrs("password"),
+})
+```
 
 ## Protocol
 

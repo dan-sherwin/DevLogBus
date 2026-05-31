@@ -30,6 +30,8 @@ type Options struct {
 	Level          slog.Leveler
 	QueueSize      int
 	PublishTimeout time.Duration
+	Filter         client.RecordFilter
+	Redactor       client.RecordRedactor
 }
 
 // Config is the mutable DevLogBus runtime configuration.
@@ -58,6 +60,8 @@ type Runtime struct {
 	source         string
 	level          slog.Leveler
 	publishTimeout time.Duration
+	filter         client.RecordFilter
+	redactor       client.RecordRedactor
 	generation     uint64
 	lastError      string
 
@@ -75,6 +79,8 @@ type snapshot struct {
 	socketPath     string
 	source         string
 	publishTimeout time.Duration
+	filter         client.RecordFilter
+	redactor       client.RecordRedactor
 	generation     uint64
 }
 
@@ -102,6 +108,8 @@ func New(options Options) *Runtime {
 		source:         options.Source,
 		level:          options.Level,
 		publishTimeout: options.PublishTimeout,
+		filter:         options.Filter,
+		redactor:       options.Redactor,
 		queue:          make(chan protocol.Record, options.QueueSize),
 		stop:           make(chan struct{}),
 		done:           make(chan struct{}),
@@ -207,6 +215,8 @@ func (r *Runtime) snapshot() snapshot {
 		socketPath:     r.socketPath,
 		source:         r.source,
 		publishTimeout: r.publishTimeout,
+		filter:         r.filter,
+		redactor:       r.redactor,
 		generation:     r.generation,
 	}
 }
@@ -278,6 +288,8 @@ func (cfg snapshot) client() *client.Client {
 		Network:    cfg.network,
 		Address:    cfg.address,
 		SocketPath: cfg.socketPath,
+		Filter:     cfg.filter,
+		Redactor:   cfg.redactor,
 	})
 }
 

@@ -22,6 +22,8 @@ type Options struct {
 	Level          slog.Leveler
 	QueueSize      int
 	PublishTimeout time.Duration
+	Filter         client.RecordFilter
+	Redactor       client.RecordRedactor
 }
 
 // Handler implements slog.Handler for DevLogBus publishing.
@@ -61,6 +63,8 @@ func New(options Options) slog.Handler {
 			Network:    options.Network,
 			Address:    options.Address,
 			SocketPath: options.SocketPath,
+			Filter:     options.Filter,
+			Redactor:   options.Redactor,
 		}),
 		queue:          make(chan protocol.Record, options.QueueSize),
 		publishTimeout: options.PublishTimeout,

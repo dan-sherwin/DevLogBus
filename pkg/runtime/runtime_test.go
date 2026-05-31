@@ -114,6 +114,36 @@ func TestDisableDropsRecords(t *testing.T) {
 	}
 }
 
+func TestHandlerAppliesRedactorAndFilter(t *testing.T) {
+	records := make(chan protocol.Record, 1)
+	addr, stop := startRecordServer(t, records)
+	defer stop()
+
+	r := New(Options{
+		Enabled:        true,
+		Source:         "runtime-test",
+		Endpoint:       addr,
+		PublishTimeout: time.Second,
+		Filter: func(record protocol.Record) bool {
+			return record.Message != "hidden"
+		},
+		Redactor: client.RedactAttrs("token"),
+	})
+	defer func() { _ = r.Close() }()
+
+	logger := slog.New(r.Handler())
+	logger.Info("hidden", slog.String("token", "drop-me"))
+	logger.Info("visible", slog.String("token", "redact-me"))
+
+	record := waitRecord(t, records)
+	if record.Message != "visible" {
+		t.Fatalf("message = %q, want visible", record.Message)
+	}
+	if record.Attrs["token"] != client.RedactedValue {
+		t.Fatalf("token = %v, want redacted", record.Attrs["token"])
+	}
+}
+
 func startRecordServer(t *testing.T, records chan<- protocol.Record) (string, func()) {
 	t.Helper()
 

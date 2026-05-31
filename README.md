@@ -36,6 +36,10 @@ internal/
 extensions/
   chrome-devlogbus/  Chrome extension that publishes browser debug events
 
+sdk/
+  node/              Node and TypeScript SDK for the HTTP API
+  python/            Python SDK for the HTTP API
+
 pkg/
   protocol/          wire messages and filtering helpers
   client/            Go client for the broker
@@ -174,7 +178,8 @@ logger := slog.New(sloghandler.New(sloghandler.Options{
 The handler uses a bounded queue and drops records when the broker is
 unavailable or the queue is full. It keeps a persistent publisher connection and
 reconnects after transport errors. Application logging should never block normal
-service work.
+service work. Optional filter and redaction hooks can drop records or scrub
+known sensitive attributes before records leave the process.
 
 ## Go Runtime Controls
 
@@ -234,6 +239,10 @@ github.com/dan-sherwin/devlogbus/pkg/protocol
 github.com/dan-sherwin/devlogbus/pkg/runtime
 github.com/dan-sherwin/devlogbus/pkg/sloghandler
 ```
+
+The Node/TypeScript and Python SDK source packages live under `sdk/node` and
+`sdk/python`. They publish through the HTTP API at `http://127.0.0.1:7423` by
+default.
 
 Run the local Go quality gate with:
 

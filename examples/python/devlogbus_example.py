@@ -1,45 +1,26 @@
 #!/usr/bin/env python3
-import json
-import urllib.request
-from datetime import datetime, timezone
+from pathlib import Path
+import sys
 
 
-ENDPOINT = "http://127.0.0.1:7423"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "sdk" / "python"))
+
+from devlogbus import DevLogBusClient, redact_attrs  # noqa: E402
 
 
-def publish(record):
-    data = json.dumps(record).encode("utf-8")
-    request = urllib.request.Request(
-        f"{ENDPOINT}/api/records",
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=2) as response:
-        if response.status != 200:
-            raise RuntimeError(f"DevLogBus publish failed: {response.status}")
-
-
-def now():
-    return datetime.now(timezone.utc).isoformat()
-
-
-publish(
-    {
-        "time": now(),
-        "level": "INFO",
-        "source": "example_python",
-        "message": "worker started",
-        "attrs": {"queue": "demo"},
-    }
+devlog = DevLogBusClient(
+    source="example_python",
+    redactor=redact_attrs(["authorization", "token"]),
 )
 
-publish(
-    {
-        "time": now(),
-        "level": "ERROR",
-        "source": "example_python",
-        "message": "job failed",
-        "attrs": {"job_id": "demo-job", "attempt": 2},
-    }
+devlog.publish(
+    level="INFO",
+    message="worker started",
+    attrs={"queue": "demo"},
+)
+
+devlog.publish(
+    level="ERROR",
+    message="job failed",
+    attrs={"job_id": "demo-job", "attempt": 2},
 )

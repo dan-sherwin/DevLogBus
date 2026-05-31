@@ -1,0 +1,20 @@
+{
+  "name": "@dan-sherwin/devlogbus",
+  "version": "0.1.0",
+  "description": "Node and TypeScript SDK for publishing records to DevLogBus.",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
