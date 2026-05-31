@@ -4,6 +4,14 @@ DevLogBus is a local-first structured log bus for development work.
 
 It is not a retention stack, alerting system, metrics backend, or production observability platform. The first job is simple: let multiple local processes publish structured logs to a broker, then let humans attach viewers that make the live stream readable.
 
+## Documentation
+
+Start with the [public documentation index](docs/index.md) for install,
+viewer, CLI, API, SDK, Browser Tap, journal bridge, security, compatibility,
+and release notes.
+
+![DevLogBus browser UI showing service, browser, and journal records](docs/assets/devlogbus-browser-ui.png)
+
 ## Layout
 
 ```text
@@ -183,14 +191,14 @@ devlog.Enable()
 _ = devlog.SetEndpoint("devbox:7422")
 ```
 
-The runtime package is public-friendly by design. It has no dependency on
-Dan's app-settings, CLI, RPC, service-template, or BMS packages. Higher-level
-applications can store the `Enabled` and `Endpoint` values however they want
-and pass changes into the runtime controls.
+The runtime package is public-friendly by design. It has no dependency on any
+private application settings, CLI, RPC, service-template, or business-specific
+packages. Higher-level applications can store the `Enabled` and `Endpoint`
+values however they want and pass changes into the runtime controls.
 
 ## Bootstrap Apps
 
-The two Go binaries follow Dan's standard Go templates:
+The Go binaries use small bootstrap apps around the public packages:
 
 - `devlogbusd` uses the service-style bootstrap: Kong commands, persistent settings, build info, shell completions, and systemd service commands.
 - `devlogbus` uses the CLI-style bootstrap: Kong commands, persistent settings, build info, and shell completions.

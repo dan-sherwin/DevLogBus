@@ -56,7 +56,7 @@ also exposes its command reference in-app with `?` or `h` so the controls stay
 discoverable without leaving the debugging session.
 
 Chrome sources keep their stable host-based record key, but the UI can render a
-friendlier label from `tabTitle`, for example `chrome:Spacelink Cloud Portal
+friendlier label from `tabTitle`, for example `chrome:Checkout Admin
 (localhost:3010)`.
 
 Browser tap detach is treated as operationally important. When Chrome ends a
@@ -66,7 +66,9 @@ that browser-side capture stopped.
 
 ## Go App Shape
 
-The project is one Go module with multiple binaries. That keeps the public import paths simple while still letting each binary use Dan's standard bootstrap-app conventions.
+The project is one Go module with multiple binaries. That keeps the public
+import paths simple while still letting each binary use a small
+application-specific bootstrap layer.
 
 - `cmd/devlogbusd` is intentionally tiny and delegates to `internal/devlogbusd/app`.
 - `cmd/devlogbus` is intentionally tiny and delegates to `internal/devlogbus/app`.

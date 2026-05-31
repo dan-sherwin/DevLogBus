@@ -1,0 +1,63 @@
+name: Bug report
+description: Report a reproducible DevLogBus problem.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please avoid pasting secrets, tokens, customer data, or private production logs.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Paste `devlogbus version`, `devlogbusd version`, or the release version.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - devlogbusd daemon
+        - Browser UI
+        - TUI
+        - CLI
+        - Go SDK
+        - Browser Tap extension
+        - Journal bridge
+        - Release/package
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start devlogbusd with ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Redact secrets and private hostnames before posting.
+      render: text
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: OS, architecture, Chrome version, install method, endpoint settings.
+    validations:
+      required: true
