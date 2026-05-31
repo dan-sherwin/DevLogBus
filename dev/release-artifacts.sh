@@ -25,6 +25,7 @@ fi
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
 
+export COPYFILE_DISABLE=1
 export GOTOOLCHAIN
 cd "$ROOT"
 
@@ -61,11 +62,11 @@ archive_stage() {
 	local goos="$2"
 
 	if [[ "$goos" == "windows" ]]; then
-		(cd "$work_dir" && zip -qr "$OUT_DIR/$artifact_base.zip" "$artifact_base")
+		(cd "$work_dir" && zip -X -qr "$OUT_DIR/$artifact_base.zip" "$artifact_base")
 		return
 	fi
 
-	(cd "$work_dir" && tar -czf "$OUT_DIR/$artifact_base.tar.gz" "$artifact_base")
+	(cd "$work_dir" && tar --no-xattrs -czf "$OUT_DIR/$artifact_base.tar.gz" "$artifact_base")
 }
 
 build_target() {
@@ -76,6 +77,7 @@ build_target() {
 
 	mkdir -p "$stage"
 	cp "$ROOT/README.md" "$ROOT/CHANGELOG.md" "$stage/"
+	cp -R "$ROOT/docs" "$stage/"
 
 	build_binary "$goos" "$goarch" "devlogbusd" "./cmd/devlogbusd" "github.com/dan-sherwin/devlogbus/internal/devlogbusd/app/consts" "$stage"
 	build_binary "$goos" "$goarch" "devlogbus" "./cmd/devlogbus" "github.com/dan-sherwin/devlogbus/internal/devlogbus/app/consts" "$stage"
@@ -105,7 +107,7 @@ package_browser_tap() {
 	cp "$ext_dir/popup.js" "$stage/"
 	cp "$ext_dir/icons/"*.png "$stage/icons/"
 
-	(cd "$work_dir" && zip -qr "$OUT_DIR/$artifact_base.zip" "$artifact_base")
+	(cd "$work_dir" && zip -X -qr "$OUT_DIR/$artifact_base.zip" "$artifact_base")
 }
 
 checksum_file() {

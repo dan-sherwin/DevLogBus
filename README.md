@@ -111,6 +111,9 @@ Load the Chrome browser tap from `extensions/chrome-devlogbus` to publish
 console, runtime, browser log, and network events from the active tab into the
 same DevLogBus stream as backend service records.
 
+For Linux install, systemd, and journald bridge notes, see
+`docs/linux.md`.
+
 ## Interactive Viewers
 
 The embedded browser UI and the terminal UI both support the two modes that
