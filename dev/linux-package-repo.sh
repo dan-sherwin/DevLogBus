@@ -461,8 +461,13 @@ The default install commands favor fast local developer setup. Signed metadata
 and keys are published for users who want the higher-assurance path, but
 verification is a choice. If you skip it, you own that tradeoff.
 
-Or, put less politely: piss on the electric fence if you want. Just don't act
-surprised when physics files a bug report on your ass.
+DevLogBus provides the tools you need to maintain your own security, but it does
+not force you to use them. Use the checksums, signing keys, and verification
+instructions as you see fit, because I am not your mother and it is not my job
+to make sure you wear a damn helmet. That choice belongs to you.
+
+In short, piss on the electric fence if you want. Just don't act surprised when
+physics files a bug report on your ass.
 
 ## Debian / Ubuntu
 
@@ -544,7 +549,8 @@ EOF
   <h1>DevLogBus Linux Package Repository</h1>
   <p>This GitHub Pages repository serves signed DevLogBus packages for APT, RPM, and Alpine APK package managers.</p>
   <p>The default install commands favor fast local developer setup. Signed metadata and keys are published for users who want the higher-assurance path, but verification is a choice. If you skip it, you own that tradeoff.</p>
-  <p>Or, put less politely: piss on the electric fence if you want. Just don't act surprised when physics files a bug report on your ass.</p>
+  <p>DevLogBus provides the tools you need to maintain your own security, but it does not force you to use them. Use the checksums, signing keys, and verification instructions as you see fit, because I am not your mother and it is not my job to make sure you wear a damn helmet. That choice belongs to you.</p>
+  <p>In short, piss on the electric fence if you want. Just don't act surprised when physics files a bug report on your ass.</p>
 
   <h2>Debian / Ubuntu</h2>
   <pre><code>echo "deb [trusted=yes] $BASE_URL/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list

@@ -6,11 +6,14 @@ It is not a retention stack, alerting system, metrics backend, or production obs
 
 ## User Choice
 
-DevLogBus gives you the safer path and the fast path. Use whichever one matches
-your risk tolerance.
+DevLogBus provides the tools you need to maintain your own security, but it does
+not force you to use them. The project publishes checksums, signing keys, and
+verification instructions. Use them as you see fit, because I am not your mother
+and it is not my job to make sure you wear a damn helmet. That choice belongs to
+you.
 
-Or, put less politely: piss on the electric fence if you want. Just don't act
-surprised when physics files a bug report on your ass.
+In short, piss on the electric fence if you want. Just don't act surprised when
+physics files a bug report on your ass.
 
 ## Documentation
 
