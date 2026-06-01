@@ -55,6 +55,9 @@ higher-assurance path, use the documented verification steps. If you want the
 fast path, use it and own the tradeoff. DevLogBus gives you the tools; it does
 not pretend to know your risk tolerance better than you do.
 
+Or, put less politely: piss on the electric fence if you want. Just don't act
+surprised when physics files a bug report on your ass.
+
 ## Browser Tap Capture Surface
 
 Browser Tap captures only after the user clicks Attach for the active tab.

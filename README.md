@@ -4,6 +4,14 @@ DevLogBus is a local-first structured log bus for development work.
 
 It is not a retention stack, alerting system, metrics backend, or production observability platform. The first job is simple: let multiple local processes publish structured logs to a broker, then let humans attach viewers that make the live stream readable.
 
+## User Choice
+
+DevLogBus gives you the safer path and the fast path. Use whichever one matches
+your risk tolerance.
+
+Or, put less politely: piss on the electric fence if you want. Just don't act
+surprised when physics files a bug report on your ass.
+
 ## Documentation
 
 Start with the [public documentation index](docs/index.md) for install,

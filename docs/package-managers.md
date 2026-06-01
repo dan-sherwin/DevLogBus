@@ -100,6 +100,9 @@ The default install commands favor fast local developer setup. Signed metadata
 and keys are published for users who want the higher-assurance path, but
 verification is a choice. If you skip it, you own that tradeoff.
 
+Or, put less politely: piss on the electric fence if you want. Just don't act
+surprised when physics files a bug report on your ass.
+
 APT:
 
 ```bash
