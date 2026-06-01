@@ -16,6 +16,8 @@ active debugging.
 
 - [Quickstart](quickstart.md): install binaries, run the daemon, open the UI,
   emit a test record, and install Browser Tap without Go or Node.
+- [Introducing DevLogBus](introducing-devlogbus.md): standalone GitHub Pages
+  project page for people who just need the pitch.
 - [Why DevLogBus Exists](why-devlogbus.md): the problem it solves, who it is
   for, who it is not for, and the local-first philosophy.
 - [Daemon](daemon.md): runtime model, endpoints, settings, replay buffers,

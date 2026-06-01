@@ -67,6 +67,9 @@ Start with the [public documentation index](docs/index.md) for install,
 package managers, viewer, CLI, API, SDK, Browser Tap, journal bridge,
 security, compatibility, and release notes.
 
+For a standalone project page, see
+[Introducing DevLogBus](https://dan-sherwin.github.io/DevLogBus/introducing-devlogbus.html).
+
 ## License
 
 DevLogBus is released under the [MIT License](LICENSE).

@@ -30,6 +30,7 @@ whole logging stack just to understand what happened.
 ## Useful Links
 
 - Project: `https://github.com/dan-sherwin/DevLogBus`
+- Project page: `https://dan-sherwin.github.io/DevLogBus/introducing-devlogbus.html`
 - Quickstart: `https://github.com/dan-sherwin/DevLogBus/blob/main/docs/quickstart.md`
 - Why it exists: `https://github.com/dan-sherwin/DevLogBus/blob/main/docs/why-devlogbus.md`
 - SDK install: `https://github.com/dan-sherwin/DevLogBus/blob/main/docs/sdk-install.md`
