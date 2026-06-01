@@ -4,6 +4,52 @@ DevLogBus is a local-first structured log bus for development work.
 
 It is not a retention stack, alerting system, metrics backend, or production observability platform. The first job is simple: let multiple local processes publish structured logs to a broker, then let humans attach viewers that make the live stream readable.
 
+![DevLogBus browser UI showing service, browser, and journal records](docs/assets/devlogbus-browser-ui.png)
+
+## What It Solves
+
+DevLogBus is for the moment when debugging turns into five terminals, a browser
+console, a CLI command, and a Linux journal tail that all need to line up in
+your head at the same time.
+
+It gives local development workflows one live stream for:
+
+- backend and service logs
+- CLI and TUI records
+- Chrome console, runtime, browser log, and network events
+- Linux `journald` records
+- SDK-published records from Go, C, .NET/C#, Rust, Java/Kotlin,
+  Node/TypeScript, and Python
+
+The goal is not to replace production observability. The goal is to make active
+development and troubleshooting less stupid.
+
+## Install
+
+Homebrew on macOS or Linux:
+
+```bash
+brew install dan-sherwin/tap/devlogbus
+```
+
+Scoop on Windows:
+
+```powershell
+scoop bucket add dan-sherwin https://github.com/dan-sherwin/scoop-bucket
+scoop install devlogbus
+```
+
+Debian or Ubuntu:
+
+```bash
+echo "deb [trusted=yes] https://dan-sherwin.github.io/devlogbus-linux-repo/apt stable main" | sudo tee /etc/apt/sources.list.d/devlogbus.list
+sudo apt update
+sudo apt install devlogbus
+```
+
+For DNF/RPM, Alpine, WinGet status, manual archives, and signature verification
+options, see [Package Managers](docs/package-managers.md).
+
 ## User Choice
 
 DevLogBus provides the tools you need to maintain your own security, but it does
@@ -20,8 +66,6 @@ physics files a bug report on your ass.
 Start with the [public documentation index](docs/index.md) for install,
 package managers, viewer, CLI, API, SDK, Browser Tap, journal bridge,
 security, compatibility, and release notes.
-
-![DevLogBus browser UI showing service, browser, and journal records](docs/assets/devlogbus-browser-ui.png)
 
 ## License
 

@@ -16,6 +16,8 @@ active debugging.
 
 - [Quickstart](quickstart.md): install binaries, run the daemon, open the UI,
   emit a test record, and install Browser Tap without Go or Node.
+- [Why DevLogBus Exists](why-devlogbus.md): the problem it solves, who it is
+  for, who it is not for, and the local-first philosophy.
 - [Daemon](daemon.md): runtime model, endpoints, settings, replay buffers,
   health/about endpoints, systemd, and troubleshooting.
 - [Browser UI](browser-ui.md): merged view, by-source view, Chrome source
@@ -55,6 +57,8 @@ active debugging.
   data handling, safe usage, and exposure risks.
 - [Compatibility](compatibility.md): v1 compatibility expectations for records,
   HTTP API, SDKs, CLI, and extension behavior.
+- [Share DevLogBus](share-devlogbus.md): short blurbs and links for low-theater
+  project discovery.
 
 ## Release And Publishing Notes
 
