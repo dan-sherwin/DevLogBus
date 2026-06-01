@@ -13,10 +13,10 @@ DevLogBus gives that work one local stream.
 
 ## What It Is
 
-DevLogBus is a local-first structured log bus for development and active
+DevLogBus is a real-time log viewer for full-stack development and active
 troubleshooting. It runs a local daemon, accepts records from tools and
 applications, keeps a bounded in-memory replay buffer, and exposes browser and
-terminal viewers.
+terminal viewers that can show sources side by side or merged into one timeline.
 
 It can collect records from:
 
@@ -30,7 +30,7 @@ It can collect records from:
 ## Who It Is For
 
 DevLogBus is for developers who need to see local cause and effect across more
-than one process.
+than one process, runtime, or machine boundary.
 
 It fits:
 
@@ -39,6 +39,7 @@ It fits:
 - trusted lab networks
 - CLI and service integration work
 - browser plus backend workflows
+- full-stack request debugging
 - short-lived troubleshooting sessions
 
 ## Who It Is Not For

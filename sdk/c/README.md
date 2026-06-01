@@ -1,6 +1,7 @@
 # DevLogBus C SDK
 
-Small C SDK for publishing records to the DevLogBus HTTP API.
+Small C SDK for sending native app records into the DevLogBus live development
+stream beside backend, CLI, browser, journal, HTTP, and other SDK records.
 
 Scope:
 

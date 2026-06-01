@@ -12,6 +12,10 @@ github.com/dan-sherwin/devlogbus/pkg/runtime
 They do not require any private app-settings, CLI templates, service templates,
 business-specific packages, or organization-private modules.
 
+Use them when Go service records should land in the same live development stream
+as browser events, CLI/TUI records, Linux `journald`, direct HTTP records, and
+other SDK records.
+
 ## slog Handler
 
 Use `pkg/sloghandler` when an application can publish whenever it starts:

@@ -2,7 +2,7 @@
 name = "devlogbus"
 version = "1.3.1"
 edition = "2021"
-description = "Rust SDK for publishing records to DevLogBus."
+description = "Rust SDK for sending app records into the DevLogBus live development stream."
 license = "MIT"
 authors = ["Dan Sherwin"]
 homepage = "https://github.com/dan-sherwin/DevLogBus"

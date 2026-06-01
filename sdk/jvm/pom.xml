@@ -9,7 +9,7 @@
   <packaging>jar</packaging>
 
   <name>DevLogBus JVM SDK</name>
-  <description>Java/Kotlin SDK for publishing records to a local DevLogBus daemon.</description>
+  <description>Java/Kotlin SDK for sending app records into the DevLogBus live development stream.</description>
   <url>https://github.com/dan-sherwin/DevLogBus</url>
 
   <licenses>

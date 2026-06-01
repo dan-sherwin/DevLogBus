@@ -1,7 +1,8 @@
 # Terminal UI
 
 The terminal UI gives the same source-group model as the browser UI without
-leaving the terminal.
+leaving the terminal, so backend, CLI, browser, journal, HTTP, and SDK records
+can still be viewed side by side or merged while you stay in a shell.
 
 ```bash
 devlogbus tui

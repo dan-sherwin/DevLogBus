@@ -74,7 +74,7 @@ emit_manifest() {
 	cat <<EOF
 {
   "version": "$manifest_version",
-  "description": "Local-first structured log bus for development work.",
+  "description": "Real-time log viewer for full-stack development across backend, CLI/TUI, Linux journald, browser, HTTP, and SDK records.",
   "homepage": "https://github.com/$OWNER/$REPO",
   "license": "MIT",
   "architecture": {

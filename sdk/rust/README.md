@@ -1,6 +1,7 @@
 # DevLogBus Rust SDK
 
-Small Rust SDK for publishing records to the DevLogBus HTTP API.
+Small Rust SDK for sending app records into the DevLogBus live development
+stream beside backend, CLI, browser, journal, HTTP, and other SDK records.
 
 Scope:
 

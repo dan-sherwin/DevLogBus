@@ -93,8 +93,8 @@ PackageName: DevLogBus
 PackageUrl: https://github.com/$OWNER/$REPO
 License: MIT
 LicenseUrl: https://github.com/$OWNER/$REPO/blob/main/LICENSE
-ShortDescription: Local-first structured log bus for development work.
-Description: DevLogBus lets local services, CLIs, Linux journal streams, and browser debugging events publish structured records into one live development log stream.
+ShortDescription: Real-time log viewer for full-stack development.
+Description: DevLogBus coalesces backend service logs, CLI/TUI records, Linux journald, browser events, direct HTTP records, and SDK-published records into one live local development stream.
 Moniker: devlogbus
 Tags:
 - logging

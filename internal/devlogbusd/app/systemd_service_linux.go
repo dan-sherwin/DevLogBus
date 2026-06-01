@@ -118,7 +118,7 @@ func systemdUnitPath() string {
 
 func systemdUnit(executable string) string {
 	return fmt.Sprintf(`[Unit]
-Description=DevLogBus local structured log broker
+Description=DevLogBus real-time development log broker
 After=network.target
 
 [Service]

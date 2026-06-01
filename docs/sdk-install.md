@@ -1,6 +1,8 @@
 # SDK Install
 
-DevLogBus SDKs publish to the daemon HTTP API at:
+DevLogBus SDKs feed application records into the same live development stream as
+backend services, CLI tools, Browser Tap events, Linux `journald`, and direct
+HTTP records. They publish to the daemon HTTP API at:
 
 ```text
 http://127.0.0.1:7423

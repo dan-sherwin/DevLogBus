@@ -1,6 +1,8 @@
 # DevLogBus Browser Tap
 
-Chrome Manifest V3 extension that attaches Chrome's debugger transport to the active tab and publishes browser-side debug events to `devlogbusd`.
+Chrome Manifest V3 extension that attaches Chrome's debugger transport to the
+active tab and publishes browser-side debug events into the local DevLogBus
+development stream beside backend, CLI, journal, HTTP, and SDK records.
 
 The extension icons live in `icons/` and are sized for Chrome's toolbar,
 extension management page, and install surfaces.

@@ -6,8 +6,9 @@ The Python SDK lives in:
 sdk/python
 ```
 
-It publishes to the DevLogBus HTTP API using only the Python standard library.
-The default endpoint is:
+It publishes to the DevLogBus HTTP API using only the Python standard library,
+so Python app records can appear beside backend, CLI, browser, journal, HTTP,
+and other SDK records. The default endpoint is:
 
 ```text
 http://127.0.0.1:7423

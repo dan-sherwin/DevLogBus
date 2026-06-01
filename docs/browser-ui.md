@@ -1,7 +1,8 @@
 # Browser UI
 
 The embedded browser UI is served by `devlogbusd` at `http://127.0.0.1:7423/`
-by default. It is the main visual debugger for active workstation use.
+by default. It is the main visual debugger for coalescing full-stack development
+logs into side-by-side source panes or one merged timeline.
 
 ## Connection
 

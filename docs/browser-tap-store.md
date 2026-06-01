@@ -32,7 +32,7 @@ DevLogBus Browser Tap
 Short description:
 
 ```text
-Publishes Chrome tab debugging events to a local DevLogBus daemon.
+Sends Chrome console, runtime, log, and network events into your local DevLogBus stream.
 ```
 
 Category:
@@ -45,11 +45,13 @@ Detailed description:
 
 ```text
 DevLogBus Browser Tap is a developer tool for sending browser-side debugging
-events into a locally running DevLogBus daemon.
+events into a locally running DevLogBus stream.
 
 Attach it to the active tab when you want Chrome console calls, runtime
 exceptions, browser log entries, and network request or response events to
-appear beside backend service logs in DevLogBus. Detach it when you are done.
+appear beside backend service logs, CLI/TUI records, Linux `journald`, direct
+HTTP records, and SDK-published records in DevLogBus. Detach it when you are
+done.
 
 The extension is local-first. By default it publishes to
 http://127.0.0.1:7423, the HTTP listener exposed by devlogbusd on your machine.
@@ -65,7 +67,7 @@ Single purpose:
 
 ```text
 Publish user-triggered active-tab debugging events to the user's local
-DevLogBus daemon.
+DevLogBus development log stream.
 ```
 
 ## Permissions Explanation
@@ -111,7 +113,7 @@ patterns before attaching to a tab.
 
 Use of user data is limited to providing and improving the extension's single
 purpose: publishing selected browser debugging events to the user's local
-DevLogBus workflow.
+DevLogBus development log stream.
 
 ## Privacy Dashboard Answers
 

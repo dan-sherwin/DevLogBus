@@ -1,6 +1,8 @@
 # DevLogBus Node/TypeScript SDK
 
-Dependency-free Node SDK for publishing records to the DevLogBus HTTP API.
+Dependency-free Node SDK for sending app records into the DevLogBus live
+development stream beside backend, CLI, browser, journal, HTTP, and other SDK
+records.
 
 ```bash
 npm install @dan-sherwin/devlogbus

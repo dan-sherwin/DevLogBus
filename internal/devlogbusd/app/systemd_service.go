@@ -39,7 +39,7 @@ func setupSystemdService() {
 	if runtime.GOOS == "darwin" {
 		kind = daemon.GlobalDaemon
 	}
-	srv, err := daemon.New(consts.APPNAME, "DevLogBus local structured log broker", kind)
+	srv, err := daemon.New(consts.APPNAME, "DevLogBus real-time development log broker", kind)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)

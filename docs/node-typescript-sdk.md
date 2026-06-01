@@ -6,8 +6,9 @@ The Node SDK lives in:
 sdk/node
 ```
 
-It publishes to the DevLogBus HTTP API and has no runtime dependencies. The
-default endpoint is:
+It publishes to the DevLogBus HTTP API and has no runtime dependencies, so Node
+and TypeScript app records can appear beside backend, CLI, browser, journal,
+HTTP, and other SDK records. The default endpoint is:
 
 ```text
 http://127.0.0.1:7423

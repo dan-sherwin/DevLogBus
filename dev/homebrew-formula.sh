@@ -94,7 +94,7 @@ formula_license_line() {
 emit_formula() {
 	cat <<EOF
 class Devlogbus < Formula
-  desc "Local-first structured log bus for development work"
+  desc "Real-time full-stack development log viewer"
   homepage "https://github.com/$OWNER/$REPO"
   version "$formula_version"
 $(formula_license_line)

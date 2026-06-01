@@ -58,7 +58,8 @@ section: utils
 priority: optional
 maintainer: Dan Sherwin <113303204+dan-sherwin@users.noreply.github.com>
 description: |-
-  Local-first structured log bus for development work.
+  Real-time log viewer for full-stack development. Coalesces backend, CLI/TUI,
+  Linux journald, browser, HTTP, and SDK records into one local stream.
 vendor: Dan Sherwin
 homepage: https://github.com/dan-sherwin/DevLogBus
 license: MIT

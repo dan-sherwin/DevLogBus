@@ -26,7 +26,7 @@ var (
 func processCLI() {
 	parser := kong.Must(&cliConfig,
 		kong.Name(consts.APPNAME),
-		kong.Description("DevLogBus local structured log broker"),
+		kong.Description("DevLogBus real-time development log broker"),
 		kong.ShortUsageOnError(),
 		kong.ConfigureHelp(kong.HelpOptions{
 			Compact: true,

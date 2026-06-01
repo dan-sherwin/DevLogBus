@@ -4,12 +4,13 @@ Effective date: May 31, 2026
 
 DevLogBus Browser Tap is a Chrome extension for local development workflows. It
 publishes user-selected browser debugging events to a DevLogBus daemon endpoint
-configured by the user.
+configured by the user so browser-side records can appear beside backend, CLI,
+journal, HTTP, and SDK records in the local development stream.
 
 ## Single Purpose
 
 The extension's single purpose is to publish user-triggered active-tab
-debugging events to the user's local DevLogBus daemon.
+debugging events to the user's local DevLogBus development log stream.
 
 ## Data The Extension Handles
 
@@ -71,7 +72,8 @@ formats.
 ## Data Use
 
 Data handled by the extension is used only for extension functionality:
-publishing selected browser debugging events into the user's DevLogBus workflow.
+publishing selected browser debugging events into the user's local DevLogBus
+development log stream.
 
 The extension does not use captured data for:
 

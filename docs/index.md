@@ -1,14 +1,14 @@
 # DevLogBus Documentation
 
-DevLogBus is a local-first structured log bus for development work. It lets
-backend services, CLIs, Linux journal streams, and browser debugging events land
-in one live stream so a developer can see cause and effect without stitching
-together five terminals and a browser console.
+DevLogBus is a real-time log viewer for full-stack development. It coalesces
+records from backend services, CLI/TUI tools, Chrome tabs, Linux `journald`,
+direct HTTP calls, and language SDKs so a developer can see them side by side or
+merged into one local timeline.
 
 DevLogBus is not a production observability platform. It does not provide
 retention, alerting, metrics, tracing, multi-user auth, or a hosted cloud
 backend. The design center is a single developer or trusted workstation during
-active debugging.
+active debugging, where cause and effect matter right now.
 
 ![DevLogBus browser UI showing service and browser records](assets/devlogbus-browser-ui.png)
 
@@ -76,6 +76,11 @@ active debugging.
 ## Visual Overview
 
 ![Browser Tap workflow demo](assets/devlogbus-browser-flow.gif)
+
+The embedded browser UI gives the widest view; the TUI keeps the same
+merged/by-source debugging model available from a terminal.
+
+![DevLogBus TUI showing source panes and record details](assets/devlogbus-tui.png)
 
 The usual workflow is:
 

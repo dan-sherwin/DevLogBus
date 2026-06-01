@@ -6,8 +6,9 @@ The C SDK lives in:
 sdk/c
 ```
 
-It is a deliberately small HTTP publisher for native tools and services. The
-default endpoint is:
+It is a deliberately small HTTP publisher for native tools and services that
+need to feed the DevLogBus live development stream beside backend, CLI, browser,
+journal, HTTP, and other SDK records. The default endpoint is:
 
 ```text
 http://127.0.0.1:7423

@@ -6,8 +6,9 @@ The .NET SDK lives in:
 sdk/dotnet
 ```
 
-It publishes to the DevLogBus HTTP API using `HttpClient` and
-`System.Text.Json`. The default endpoint is:
+It sends app records into the DevLogBus live development stream using
+`HttpClient` and `System.Text.Json`, so .NET logs can appear beside backend,
+CLI, browser, journal, HTTP, and other SDK records. The default endpoint is:
 
 ```text
 http://127.0.0.1:7423

@@ -1,6 +1,7 @@
 # Architecture
 
-DevLogBus has three cooperating pieces:
+DevLogBus is a real-time full-stack development log stream built from these
+cooperating pieces:
 
 - Producers publish structured records.
 - `devlogbusd` accepts records over a configured broker endpoint, can optionally listen on an extra TCP address, and keeps a per-source in-memory replay buffer.

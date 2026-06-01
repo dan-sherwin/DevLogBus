@@ -1,8 +1,13 @@
 # DevLogBus
 
-DevLogBus is a local-first structured log bus for development work.
+DevLogBus is a real-time log viewer for full-stack development. It coalesces
+records from backend services, CLI/TUI tools, Chrome tabs, Linux `journald`,
+direct HTTP calls, and language SDKs so you can see them side by side or merged
+into one local timeline.
 
-It is not a retention stack, alerting system, metrics backend, or production observability platform. The first job is simple: let multiple local processes publish structured logs to a broker, then let humans attach viewers that make the live stream readable.
+It is not a retention stack, alerting system, metrics backend, or production
+observability platform. The first job is simple: make active development logs
+from multiple sources readable in one place while you are debugging.
 
 ![DevLogBus browser UI showing service, browser, and journal records](docs/assets/devlogbus-browser-ui.png)
 
@@ -12,7 +17,7 @@ DevLogBus is for the moment when debugging turns into five terminals, a browser
 console, a CLI command, and a Linux journal tail that all need to line up in
 your head at the same time.
 
-It gives local development workflows one live stream for:
+It gives full-stack local development workflows one live stream for:
 
 - backend and service logs
 - CLI and TUI records
@@ -20,6 +25,9 @@ It gives local development workflows one live stream for:
 - Linux `journald` records
 - SDK-published records from Go, C, .NET/C#, Rust, Java/Kotlin,
   Node/TypeScript, and Python
+
+View those sources side by side, drill into noisy browser/network groups, or
+merge everything into one chronological stream when order matters most.
 
 The goal is not to replace production observability. The goal is to make active
 development and troubleshooting less stupid.

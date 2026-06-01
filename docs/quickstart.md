@@ -1,5 +1,9 @@
 # Quickstart
 
+DevLogBus is made for real-time log viewing during full-stack development. It
+coalesces backend/service logs, CLI/TUI records, Chrome browser events, Linux
+`journald`, direct HTTP records, and SDK records into one local viewer.
+
 This quickstart uses release binaries or package managers. You do not need Go,
 Node, npm, or a source checkout.
 
