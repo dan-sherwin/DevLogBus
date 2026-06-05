@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "DevLogBus Browser Tap",
   "description": "Sends Chrome console, runtime, log, and network events into your local DevLogBus stream.",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "minimum_chrome_version": "125",
   "permissions": ["activeTab", "debugger", "storage", "tabs"],
   "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
