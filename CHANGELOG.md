@@ -5,6 +5,21 @@
 - Fixed a stale Homebrew tap path in the package-manager docs.
 - Set the release workflow to use the Node 24 JavaScript action runtime.
 
+## v1.3.2 - 2026-06-05
+
+This release adds optional login protection for the embedded browser UI.
+
+### Highlights
+
+- Added UI-managed DevLogBus users with username, display name, and password
+  setup from the Settings dialog.
+- Added a login-mode toggle that keeps DevLogBus open by default and allows
+  login enforcement to be turned on or off after users exist.
+- Protected the browser UI's log/about/record HTTP APIs with a session cookie
+  when login mode is enabled.
+- Kept the default install and daemon behavior open for local developer
+  workflows with no configured users.
+
 ## v1.3.1 - 2026-05-31
 
 This release aligns SDK package metadata and adds native package-manager

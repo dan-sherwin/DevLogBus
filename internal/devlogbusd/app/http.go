@@ -50,11 +50,18 @@ func startHTTPServer(ctx context.Context, address string, b *broker) (func(), er
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/about", withCORS(handleHTTPAbout))
+	auth := defaultAuthManager
+	mux.HandleFunc("/api/auth/status", withCORSMethods(auth.handleHTTPAuthStatus, http.MethodGet))
+	mux.HandleFunc("/api/auth/login", withCORSMethods(auth.handleHTTPAuthLogin, http.MethodPost))
+	mux.HandleFunc("/api/auth/logout", withCORSMethods(auth.handleHTTPAuthLogout, http.MethodPost))
+	mux.HandleFunc("/api/auth/settings", withCORSMethods(auth.withHTTPAuth(auth.handleHTTPAuthSettings), http.MethodPost))
+	mux.HandleFunc("/api/auth/users", withCORSMethods(auth.withHTTPAuth(auth.handleHTTPAuthUsers), http.MethodGet, http.MethodPost))
+	mux.HandleFunc("/api/auth/users/", withCORSMethods(auth.withHTTPAuth(auth.handleHTTPAuthUser), http.MethodDelete))
+	mux.HandleFunc("/api/about", withCORS(auth.withHTTPAuth(handleHTTPAbout)))
 	mux.HandleFunc("/api/health", withCORS(handleHTTPHealth))
-	mux.HandleFunc("/api/records", withCORSMethods(b.handleHTTPRecords, http.MethodGet, http.MethodPost))
-	mux.HandleFunc("/api/records/expunge", withCORSMethods(b.handleHTTPExpungeRecords, http.MethodDelete))
-	mux.HandleFunc("/api/stream", withCORS(b.handleHTTPStream))
+	mux.HandleFunc("/api/records", withCORSMethods(auth.withHTTPAuth(b.handleHTTPRecords), http.MethodGet, http.MethodPost))
+	mux.HandleFunc("/api/records/expunge", withCORSMethods(auth.withHTTPAuth(b.handleHTTPExpungeRecords), http.MethodDelete))
+	mux.HandleFunc("/api/stream", withCORS(auth.withHTTPAuth(b.handleHTTPStream)))
 	uiFS, err := devlogbusui.DistFS()
 	if err != nil {
 		return nil, fmt.Errorf("load ui assets: %w", err)
@@ -104,7 +111,13 @@ func withCORSMethods(next http.HandlerFunc, methods ...string) http.HandlerFunc 
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if origin := r.Header.Get("Origin"); origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Add("Vary", "Origin")
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
 		w.Header().Set("Access-Control-Allow-Methods", strings.Join(append(methods, http.MethodOptions), ", "))
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {

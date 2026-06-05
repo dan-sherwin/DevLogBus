@@ -13,6 +13,22 @@ stream is connected or reconnecting.
 The About button shows daemon build information, broker endpoint, HTTP address,
 optional TCP address, record retention, and echo state.
 
+## Login Protection
+
+DevLogBus is open by default. A fresh daemon install has no users and does not
+require a login.
+
+The Settings button opens user management for the embedded UI. Add users with:
+
+- username
+- display name
+- password
+
+After at least one user exists, login mode can be toggled on or off from the
+same Settings dialog. When login mode is on, the browser UI requires a session
+cookie and protects the log/about/record HTTP APIs that expose buffered records.
+When login mode is off, the UI and APIs are open again.
+
 ## Merged View
 
 Merged view shows one chronological timeline across all visible sources. This

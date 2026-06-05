@@ -8,6 +8,32 @@ All HTTP JSON responses use `Content-Type: application/json`. The daemon also
 sets permissive CORS headers because Browser Tap and local development pages
 publish from browser contexts.
 
+## Authentication
+
+The HTTP API is open by default. If UI login mode is enabled and at least one
+user exists, the daemon requires a browser session cookie for APIs that expose
+log records or daemon details:
+
+- `GET /api/about`
+- `GET /api/records`
+- `POST /api/records`
+- `DELETE /api/records/expunge`
+- `GET /api/stream`
+
+Auth management endpoints:
+
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/api/auth/status` | `GET` | Report login mode, whether login is required, user count, and current user. |
+| `/api/auth/login` | `POST` | Create a UI session from username and password. |
+| `/api/auth/logout` | `POST` | Clear the current UI session. |
+| `/api/auth/settings` | `POST` | Toggle login mode. Requires a session when login mode is active. |
+| `/api/auth/users` | `GET`, `POST` | List or create UI users. Requires a session when login mode is active. |
+| `/api/auth/users/{username}` | `DELETE` | Delete a UI user. Requires a session when login mode is active. |
+
+`/api/health` remains open so package managers, services, and health checks can
+verify that the daemon is running.
+
 ## Record Schema
 
 ```json

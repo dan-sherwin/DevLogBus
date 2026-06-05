@@ -20,11 +20,18 @@ The default Go/CLI endpoint is:
 - macOS/Linux: `/tmp/devlogbus/devlogbus.sock`
 - Windows: `127.0.0.1:7422`
 
-## No Accounts Or Authentication
+## Optional UI Login
 
-DevLogBus does not have user accounts, tokens, login sessions, or authorization
-checks. Do not bind DevLogBus listeners to public interfaces unless the network
-itself is trusted.
+DevLogBus is open by default. A fresh daemon install has no users and does not
+require a login.
+
+The embedded browser UI can enable login mode from Settings after at least one
+user has been added. UI users have a username, display name, and password. When
+login mode is enabled, the browser UI requires a session cookie and protects the
+HTTP APIs that expose buffered records and daemon details.
+
+The Go/CLI socket endpoint remains a local developer endpoint. Do not bind
+DevLogBus listeners to public interfaces unless the network itself is trusted.
 
 Safe workstation default:
 

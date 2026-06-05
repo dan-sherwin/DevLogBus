@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   Badge,
   Box,
@@ -31,9 +31,13 @@ import HelpIcon from "@mui/icons-material/Help";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import KeyboardDoubleArrowDownIcon from "@mui/icons-material/KeyboardDoubleArrowDown";
 import LightModeIcon from "@mui/icons-material/LightMode";
+import LoginIcon from "@mui/icons-material/Login";
+import LogoutIcon from "@mui/icons-material/Logout";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PauseCircleOutlinedIcon from "@mui/icons-material/PauseCircleOutlined";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import SettingsIcon from "@mui/icons-material/Settings";
 import SubjectIcon from "@mui/icons-material/Subject";
 import { useMessagesContext } from "@dsherwin/mui-kit";
 
@@ -44,7 +48,30 @@ type SourceLayout = "tiled" | "vertical" | "horizontal";
 type ThemePreference = "system" | "light" | "dark";
 type ResolvedThemeMode = "light" | "dark";
 type PopoutKind = "group" | "source";
-type ActiveDialog = "about" | "blocked" | "help" | null;
+type ActiveDialog = "about" | "blocked" | "help" | "settings" | null;
+
+type AuthUser = {
+  username: string;
+  displayName: string;
+  createdAt: string;
+};
+
+type AuthStatusResponse = {
+  loginEnabled: boolean;
+  loginRequired: boolean;
+  userCount: number;
+  currentUser?: AuthUser;
+};
+
+type AuthUsersResponse = {
+  users: AuthUser[];
+};
+
+type NewUserForm = {
+  username: string;
+  displayName: string;
+  password: string;
+};
 
 type AboutResponse = {
   api: {
@@ -137,6 +164,38 @@ type ViteImportMeta = ImportMeta & {
 const apiBase = (
   (import.meta as ViteImportMeta).env?.VITE_DEVLOGBUS_API_URL ?? ""
 ).replace(/\/$/, "");
+
+async function apiJSON<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers = new Headers(options?.headers);
+  if (options?.body != null && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const response = await fetch(`${apiBase}${path}`, {
+    ...options,
+    credentials: "include",
+    headers,
+  });
+  if (!response.ok) {
+    throw new Error(await apiErrorMessage(response));
+  }
+  return (await response.json()) as T;
+}
+
+async function apiErrorMessage(response: Response): Promise<string> {
+  const text = await response.text();
+  if (text !== "") {
+    try {
+      const parsed = JSON.parse(text) as { error?: string };
+      if (typeof parsed.error === "string" && parsed.error.trim() !== "") {
+        return parsed.error;
+      }
+    } catch {
+      return text;
+    }
+  }
+  return response.statusText || `request failed: ${response.status}`;
+}
+
 const maxVisibleRecordsPerSource = 1000;
 const levels: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR"];
 const layouts: Array<{ label: string; value: SourceLayout }> = [
@@ -147,6 +206,8 @@ const layouts: Array<{ label: string; value: SourceLayout }> = [
 const sourcePaneGap = 12;
 const paneWidthBounds = { min: 360, step: 20 };
 const defaultPaneWidth = 380;
+const nestedPaneWidthBounds = { min: 50, step: 20 };
+const defaultNestedPaneWidth = 260;
 const paneHeightMin = 220;
 const themeStorageKey = "devlogbus-theme";
 const blockedSourcesStorageKey = "devlogbus-blocked-sources";
@@ -646,6 +707,12 @@ export default function App() {
   const { displayErrorMessage, displaySuccessMessage } = useMessagesContext();
   const [popoutTarget] = useState<PopoutTarget | null>(parsePopoutTarget);
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
+  const [authStatus, setAuthStatus] = useState<AuthStatusResponse | null>(null);
+  const [authStatusError, setAuthStatusError] = useState("");
+  const [authUsers, setAuthUsers] = useState<AuthUser[]>([]);
+  const [authUsersError, setAuthUsersError] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [loginBusy, setLoginBusy] = useState(false);
   const [about, setAbout] = useState<AboutResponse | null>(null);
   const [aboutError, setAboutError] = useState("");
   const [themePreference, setThemePreference] = useState<ThemePreference>(savedThemePreference);
@@ -676,6 +743,7 @@ export default function App() {
   const [excludedSources, setExcludedSources] = useState<string[]>([]);
   const [groupViewModes, setGroupViewModes] = useState<Partial<Record<string, ViewMode>>>({});
   const [groupLayouts, setGroupLayouts] = useState<Partial<Record<string, SourceLayout>>>({});
+  const [groupPaneWidths, setGroupPaneWidths] = useState<Partial<Record<string, number>>>({});
   const [detachedTargets, setDetachedTargets] = useState<string[]>(readDetachedTargetIDs);
   const [selectedID, setSelectedID] = useState("");
   const blockedSourcesRef = useRef(blockedSources);
@@ -731,6 +799,127 @@ export default function App() {
     setBlockedSources(normalized);
     blockedSourcesChannelRef.current?.postMessage(normalized);
   };
+  const loginRequired = authStatus?.loginRequired === true && authStatus.currentUser == null;
+  const authReady = authStatus != null && authStatusError === "";
+
+  const loadAuthStatus = async () => {
+    try {
+      const status = await apiJSON<AuthStatusResponse>("/api/auth/status");
+      setAuthStatus(status);
+      setAuthStatusError("");
+      return status;
+    } catch (error) {
+      console.error("Failed to load DevLogBus auth status", error);
+      setAuthStatus(null);
+      setAuthStatusError(error instanceof Error ? error.message : "Auth status unavailable");
+      throw error;
+    }
+  };
+
+  const loadAuthUsers = async () => {
+    try {
+      const response = await apiJSON<AuthUsersResponse>("/api/auth/users");
+      setAuthUsers(response.users);
+      setAuthUsersError("");
+      return response.users;
+    } catch (error) {
+      console.error("Failed to load DevLogBus auth users", error);
+      const message = error instanceof Error ? error.message : "Users unavailable";
+      setAuthUsersError(message);
+      throw error;
+    }
+  };
+
+  const submitLogin = async (username: string, password: string) => {
+    setLoginBusy(true);
+    try {
+      const status = await apiJSON<AuthStatusResponse>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+      });
+      setAuthStatus(status);
+      setAuthStatusError("");
+      displaySuccessMessage(`Signed in as ${status.currentUser?.displayName ?? username}`);
+    } finally {
+      setLoginBusy(false);
+    }
+  };
+
+  const logout = async () => {
+    setAuthBusy(true);
+    try {
+      const status = await apiJSON<AuthStatusResponse>("/api/auth/logout", {
+        method: "POST",
+      });
+      setAuthStatus(status);
+      clearRecords();
+      displaySuccessMessage("Signed out");
+    } catch (error) {
+      console.error("Failed to sign out of DevLogBus", error);
+      displayErrorMessage("Failed to sign out");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const saveAuthSettings = async (loginEnabled: boolean) => {
+    setAuthBusy(true);
+    try {
+      const status = await apiJSON<AuthStatusResponse>("/api/auth/settings", {
+        method: "POST",
+        body: JSON.stringify({ loginEnabled }),
+      });
+      setAuthStatus(status);
+      displaySuccessMessage(loginEnabled ? "Login mode enabled" : "Login mode disabled");
+    } catch (error) {
+      console.error("Failed to save DevLogBus auth settings", error);
+      const message = error instanceof Error ? error.message : "Failed to save auth settings";
+      displayErrorMessage(message);
+      throw error;
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const createAuthUser = async (user: NewUserForm) => {
+    setAuthBusy(true);
+    try {
+      const response = await apiJSON<AuthUsersResponse>("/api/auth/users", {
+        method: "POST",
+        body: JSON.stringify(user),
+      });
+      setAuthUsers(response.users);
+      await loadAuthStatus();
+      displaySuccessMessage(`Added ${user.username.trim()}`);
+    } catch (error) {
+      console.error("Failed to add DevLogBus user", error);
+      const message = error instanceof Error ? error.message : "Failed to add user";
+      displayErrorMessage(message);
+      throw error;
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const deleteAuthUser = async (username: string) => {
+    setAuthBusy(true);
+    try {
+      const response = await apiJSON<AuthUsersResponse>(
+        `/api/auth/users/${encodeURIComponent(username)}`,
+        { method: "DELETE" },
+      );
+      setAuthUsers(response.users);
+      await loadAuthStatus();
+      displaySuccessMessage(`Deleted ${username}`);
+    } catch (error) {
+      console.error("Failed to delete DevLogBus user", error);
+      const message = error instanceof Error ? error.message : "Failed to delete user";
+      displayErrorMessage(message);
+      throw error;
+    } finally {
+      setAuthBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -752,6 +941,26 @@ export default function App() {
       window.localStorage.setItem(themeStorageKey, themePreference);
     }
   }, [resolvedThemeMode, themePreference]);
+
+  useEffect(() => {
+    void loadAuthStatus();
+  }, []);
+
+  useEffect(() => {
+    if (activeDialog !== "settings") {
+      return;
+    }
+    void loadAuthUsers();
+  }, [activeDialog, authStatus?.userCount]);
+
+  useEffect(() => {
+    if (!loginRequired) {
+      return;
+    }
+    setRecords([]);
+    setKnownSources([]);
+    setSelectedID("");
+  }, [loginRequired]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -862,13 +1071,7 @@ export default function App() {
     }
     let ignore = false;
     setAboutError("");
-    fetch(`${apiBase}/api/about`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`about failed: ${response.status}`);
-        }
-        return response.json() as Promise<AboutResponse>;
-      })
+    apiJSON<AboutResponse>("/api/about")
       .then((nextAbout) => {
         if (!ignore) {
           setAbout(nextAbout);
@@ -887,8 +1090,13 @@ export default function App() {
   }, [activeDialog]);
 
   useEffect(() => {
+    if (!authReady || loginRequired) {
+      return;
+    }
     const params = new URLSearchParams({ level: "debug" });
-    const stream = new EventSource(`${apiBase}/api/stream?${params.toString()}`);
+    const stream = new EventSource(`${apiBase}/api/stream?${params.toString()}`, {
+      withCredentials: true,
+    });
 
     stream.onopen = () => setConnection("online");
     stream.onerror = () => setConnection("reconnecting");
@@ -921,7 +1129,7 @@ export default function App() {
     });
 
     return () => stream.close();
-  }, []);
+  }, [authReady, authStatus?.currentUser?.username, loginRequired]);
 
   useEffect(() => {
     const syncPaneBounds = () => {
@@ -1172,6 +1380,7 @@ export default function App() {
       );
       setGroupViewModes((current) => withoutSourceSetting(current, group));
       setGroupLayouts((current) => withoutSourceSetting(current, group));
+      setGroupPaneWidths((current) => withoutSourceSetting(current, group));
       setPerSourceLevels((current) => withoutSourceSetting(current, scope));
       setAutoScrollSources((current) => withoutSourceSetting(current, scope));
       setDetailSources((current) => withoutSourceSetting(current, scope));
@@ -1190,13 +1399,10 @@ export default function App() {
     }
     const query = params.toString();
     try {
-      const response = await fetch(`${apiBase}/api/records/expunge${query ? `?${query}` : ""}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        throw new Error(`expunge failed: ${response.status}`);
-      }
-      const result = (await response.json()) as { expunged?: number };
+      const result = await apiJSON<{ expunged?: number }>(
+        `/api/records/expunge${query ? `?${query}` : ""}`,
+        { method: "DELETE" },
+      );
       if (source != null && source !== "") {
         clearSourceRecords(source, { forgetSource: true });
         displaySuccessMessage(`Expunged ${result.expunged ?? 0} ${source} records`);
@@ -1214,16 +1420,10 @@ export default function App() {
     try {
       let expunged = 0;
       for (const source of pane.childSources) {
-        const response = await fetch(
-          `${apiBase}/api/records/expunge?${new URLSearchParams({ source }).toString()}`,
-          {
-            method: "DELETE",
-          },
+        const result = await apiJSON<{ expunged?: number }>(
+          `/api/records/expunge?${new URLSearchParams({ source }).toString()}`,
+          { method: "DELETE" },
         );
-        if (!response.ok) {
-          throw new Error(`expunge failed: ${response.status}`);
-        }
-        const result = (await response.json()) as { expunged?: number };
         expunged += result.expunged ?? 0;
       }
       clearGroupRecords(pane.group, { forgetGroup: true });
@@ -1326,6 +1526,10 @@ export default function App() {
     0,
     Math.floor((paneArea.height - sourcePaneGap * (tileRowCount - 1)) / tileRowCount),
   );
+  const nestedPaneWidthMax = Math.max(
+    nestedPaneWidthBounds.min,
+    Math.min(paneArea.width, sourceLayout === "tiled" ? paneWidth : paneArea.width),
+  );
 
   useEffect(() => {
     if (viewMode !== "merged" || !mergedAutoScroll) {
@@ -1388,11 +1592,24 @@ export default function App() {
   const mergedPaneStyle = {
     "--merged-pane-height": `${mergedPaneHeight}px`,
   } as CSSProperties;
+  const showAuthGate = authStatusError !== "" || !authReady || loginRequired;
 
   return (
     <ThemeProvider theme={appTheme}>
       <CssBaseline />
-      <main className={`shell ${isPopout ? "popoutShell" : ""}`} data-theme={resolvedThemeMode}>
+      {showAuthGate ? (
+        <AuthGate
+          busy={loginBusy}
+          error={authStatusError}
+          loading={!authReady && authStatusError === ""}
+          onLogin={submitLogin}
+          onRetry={() => {
+            void loadAuthStatus();
+          }}
+        />
+      ) : (
+        <>
+          <main className={`shell ${isPopout ? "popoutShell" : ""}`} data-theme={resolvedThemeMode}>
         <header className="topbar">
           <div className="brandLockup">
             <img className="brandMark" src="/devlogbus-brand.png" alt="" aria-hidden="true" />
@@ -1418,6 +1635,16 @@ export default function App() {
               </div>
             )}
             <ThemeModeControl onChange={setThemePreference} preference={themePreference} />
+            <Tooltip title="Settings">
+              <IconButton
+                aria-label="Settings"
+                className="topbarIconButton"
+                onClick={() => setActiveDialog("settings")}
+                size="small"
+              >
+                <SettingsIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Blocked sources">
               <IconButton
                 aria-label="Blocked sources"
@@ -1454,6 +1681,26 @@ export default function App() {
                 <InfoOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
+            {authStatus?.currentUser != null && (
+              <span className="userChip" title={authStatus.currentUser.username}>
+                {authStatus.currentUser.displayName}
+              </span>
+            )}
+            {authStatus?.currentUser != null && (
+              <Tooltip title="Sign out">
+                <IconButton
+                  aria-label="Sign out"
+                  className="topbarIconButton"
+                  disabled={authBusy}
+                  onClick={() => {
+                    void logout();
+                  }}
+                  size="small"
+                >
+                  <LogoutIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
             <div className={`status ${connection}`}>
               <span className="dot" />
               broker {connection}
@@ -1695,25 +1942,54 @@ export default function App() {
                             </ToggleButtonGroup>
                           )}
                           {pane.isGroup && pane.viewMode === "source" && (
-                            <ToggleButtonGroup
-                              aria-label={`${pane.label} child source layout`}
-                              className="groupLayoutToggles"
-                              exclusive
-                              onChange={(_, value: SourceLayout | null) => {
-                                if (value != null) {
-                                  setGroupLayouts((current) => ({
-                                    ...current,
-                                    [pane.group]: value,
-                                  }));
-                                }
-                              }}
-                              size="small"
-                              value={pane.layout}
-                            >
-                              <ToggleButton value="tiled">Tiled</ToggleButton>
-                              <ToggleButton value="vertical">Vert</ToggleButton>
-                              <ToggleButton value="horizontal">Horiz</ToggleButton>
-                            </ToggleButtonGroup>
+                            <>
+                              <ToggleButtonGroup
+                                aria-label={`${pane.label} child source layout`}
+                                className="groupLayoutToggles"
+                                exclusive
+                                onChange={(_, value: SourceLayout | null) => {
+                                  if (value != null) {
+                                    setGroupLayouts((current) => ({
+                                      ...current,
+                                      [pane.group]: value,
+                                    }));
+                                  }
+                                }}
+                                size="small"
+                                value={pane.layout}
+                              >
+                                <ToggleButton value="tiled">Tiled</ToggleButton>
+                                <ToggleButton value="vertical">Vert</ToggleButton>
+                                <ToggleButton value="horizontal">Horiz</ToggleButton>
+                              </ToggleButtonGroup>
+                              {pane.layout === "tiled" && (
+                                <div className="nestedPaneControls">
+                                  <PaneRange
+                                    ariaLabel={`${pane.label} child source width`}
+                                    bounds={{
+                                      max: nestedPaneWidthMax,
+                                      ...nestedPaneWidthBounds,
+                                    }}
+                                    label="Width"
+                                    onChange={(value) =>
+                                      setGroupPaneWidths((current) => ({
+                                        ...current,
+                                        [pane.group]: clamp(
+                                          value,
+                                          nestedPaneWidthBounds.min,
+                                          nestedPaneWidthMax,
+                                        ),
+                                      }))
+                                    }
+                                    value={clamp(
+                                      groupPaneWidths[pane.group] ?? defaultNestedPaneWidth,
+                                      nestedPaneWidthBounds.min,
+                                      nestedPaneWidthMax,
+                                    )}
+                                  />
+                                </div>
+                              )}
+                            </>
                           )}
                           {(!pane.isGroup || pane.viewMode === "merged") && (
                             <LevelButtons
@@ -1797,6 +2073,11 @@ export default function App() {
                           style={
                             {
                               "--nested-source-count": Math.max(1, pane.childPanes.length),
+                              "--nested-source-pane-width": `${clamp(
+                                groupPaneWidths[pane.group] ?? defaultNestedPaneWidth,
+                                nestedPaneWidthBounds.min,
+                                nestedPaneWidthMax,
+                              )}px`,
                             } as CSSProperties
                           }
                         >
@@ -1966,7 +2247,284 @@ export default function App() {
         onUnblock={unblockSource}
         open={activeDialog === "blocked"}
       />
+      <SettingsDialog
+        busy={authBusy}
+        error={authUsersError}
+        onClose={() => setActiveDialog(null)}
+        onCreateUser={createAuthUser}
+        onDeleteUser={deleteAuthUser}
+        onToggleLogin={saveAuthSettings}
+        open={activeDialog === "settings"}
+        status={authStatus}
+        users={authUsers}
+      />
+        </>
+      )}
     </ThemeProvider>
+  );
+}
+
+function AuthGate({
+  busy,
+  error,
+  loading,
+  onLogin,
+  onRetry,
+}: {
+  busy: boolean;
+  error: string;
+  loading: boolean;
+  onLogin: (username: string, password: string) => Promise<void>;
+  onRetry: () => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [formError, setFormError] = useState("");
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setFormError("");
+    try {
+      await onLogin(username, password);
+      setPassword("");
+    } catch (loginError) {
+      setFormError(loginError instanceof Error ? loginError.message : "Sign in failed");
+    }
+  };
+
+  return (
+    <main className="authGate">
+      <section className="loginPanel">
+        <div className="loginBrand">
+          <img className="brandMark" src="/devlogbus-brand.png" alt="" aria-hidden="true" />
+          <div>
+            <h1>DevLogBus</h1>
+            <p>Protected viewer</p>
+          </div>
+        </div>
+        {loading ? (
+          <div className="emptyState">Loading.</div>
+        ) : error !== "" ? (
+          <div className="loginStack">
+            <div className="dialogError">{error}</div>
+            <Button onClick={onRetry} variant="contained">
+              Retry
+            </Button>
+          </div>
+        ) : (
+          <form className="loginForm" onSubmit={submit}>
+            <TextField
+              autoComplete="username"
+              autoFocus
+              label="Username"
+              onChange={(event) => setUsername(event.target.value)}
+              size="small"
+              value={username}
+            />
+            <TextField
+              autoComplete="current-password"
+              label="Password"
+              onChange={(event) => setPassword(event.target.value)}
+              size="small"
+              type="password"
+              value={password}
+            />
+            {formError !== "" && <div className="formError">{formError}</div>}
+            <Button
+              disabled={busy || username.trim() === "" || password === ""}
+              startIcon={<LoginIcon />}
+              type="submit"
+              variant="contained"
+            >
+              Sign In
+            </Button>
+          </form>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function SettingsDialog({
+  busy,
+  error,
+  onClose,
+  onCreateUser,
+  onDeleteUser,
+  onToggleLogin,
+  open,
+  status,
+  users,
+}: {
+  busy: boolean;
+  error: string;
+  onClose: () => void;
+  onCreateUser: (user: NewUserForm) => Promise<void>;
+  onDeleteUser: (username: string) => Promise<void>;
+  onToggleLogin: (enabled: boolean) => Promise<void>;
+  open: boolean;
+  status: AuthStatusResponse | null;
+  users: AuthUser[];
+}) {
+  const [newUser, setNewUser] = useState<NewUserForm>({
+    username: "",
+    displayName: "",
+    password: "",
+  });
+  const [formError, setFormError] = useState("");
+  const [settingsError, setSettingsError] = useState("");
+  const canEnableLogin = status != null && (status.userCount > 0 || status.loginEnabled);
+
+  useEffect(() => {
+    if (!open) {
+      setFormError("");
+      setSettingsError("");
+      setNewUser({ username: "", displayName: "", password: "" });
+    }
+  }, [open]);
+
+  const submitUser = async (event: FormEvent) => {
+    event.preventDefault();
+    setFormError("");
+    try {
+      await onCreateUser(newUser);
+      setNewUser({ username: "", displayName: "", password: "" });
+    } catch (createError) {
+      setFormError(createError instanceof Error ? createError.message : "Failed to add user");
+    }
+  };
+
+  const toggleLogin = async (enabled: boolean) => {
+    setSettingsError("");
+    try {
+      await onToggleLogin(enabled);
+    } catch (toggleError) {
+      setSettingsError(toggleError instanceof Error ? toggleError.message : "Failed to save");
+    }
+  };
+
+  const deleteUser = async (username: string) => {
+    setSettingsError("");
+    try {
+      await onDeleteUser(username);
+    } catch (deleteError) {
+      setSettingsError(deleteError instanceof Error ? deleteError.message : "Failed to delete user");
+    }
+  };
+
+  return (
+    <Dialog className="appDialog settingsDialog" fullWidth maxWidth="md" onClose={onClose} open={open}>
+      <DialogTitle>Settings</DialogTitle>
+      <DialogContent>
+        <div className="settingsGrid">
+          <section className="settingsPanel">
+            <div className="settingsRow">
+              <div>
+                <strong>Login mode</strong>
+                <span>{status?.loginRequired ? "Required" : "Open"}</span>
+              </div>
+              <Switch
+                checked={status?.loginEnabled ?? false}
+                disabled={busy || !canEnableLogin}
+                onChange={(event) => {
+                  void toggleLogin(event.currentTarget.checked);
+                }}
+                size="small"
+              />
+            </div>
+            {!canEnableLogin && <div className="dialogWarning">Add a user before enabling.</div>}
+            {settingsError !== "" && <div className="formError">{settingsError}</div>}
+          </section>
+
+          <section className="settingsPanel">
+            <div className="settingsPanelHeader">
+              <h3>Users</h3>
+              <span>{users.length}</span>
+            </div>
+            {error !== "" ? (
+              <div className="dialogError">{error}</div>
+            ) : users.length === 0 ? (
+              <div className="emptyState compact">No users.</div>
+            ) : (
+              <div className="authUserList">
+                {users.map((user) => (
+                  <div className="authUserRow" key={user.username}>
+                    <div>
+                      <strong>{user.displayName}</strong>
+                      <span>{user.username}</span>
+                    </div>
+                    <Tooltip title={`Delete ${user.username}`}>
+                      <IconButton
+                        aria-label={`Delete ${user.username}`}
+                        className="sourceBlockButton"
+                        disabled={busy}
+                        onClick={() => {
+                          void deleteUser(user.username);
+                        }}
+                        size="small"
+                      >
+                        <DeleteSweepIcon fontSize="inherit" />
+                      </IconButton>
+                    </Tooltip>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <form className="settingsPanel addUserForm" onSubmit={submitUser}>
+            <div className="settingsPanelHeader">
+              <h3>Add User</h3>
+            </div>
+            <div className="formGrid">
+              <TextField
+                autoComplete="username"
+                label="Username"
+                onChange={(event) => setNewUser((current) => ({ ...current, username: event.target.value }))}
+                size="small"
+                value={newUser.username}
+              />
+              <TextField
+                autoComplete="name"
+                label="Display name"
+                onChange={(event) =>
+                  setNewUser((current) => ({ ...current, displayName: event.target.value }))
+                }
+                size="small"
+                value={newUser.displayName}
+              />
+              <TextField
+                autoComplete="new-password"
+                label="Password"
+                onChange={(event) => setNewUser((current) => ({ ...current, password: event.target.value }))}
+                size="small"
+                type="password"
+                value={newUser.password}
+              />
+            </div>
+            {formError !== "" && <div className="formError">{formError}</div>}
+            <Button
+              disabled={
+                busy ||
+                newUser.username.trim() === "" ||
+                newUser.displayName.trim() === "" ||
+                newUser.password === ""
+              }
+              startIcon={<PersonAddIcon />}
+              type="submit"
+              variant="contained"
+            >
+              Add User
+            </Button>
+          </form>
+        </div>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} variant="contained">
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -2417,23 +2975,25 @@ function PaneMenu({
 }
 
 function PaneRange({
+  ariaLabel,
   bounds,
   label,
   onChange,
   value,
 }: {
+  ariaLabel?: string;
   bounds: { max: number; min: number; step: number };
   label: string;
   onChange: (value: number) => void;
   value: number;
 }) {
   return (
-    <Box className="rangeControl">
+    <Box aria-label={ariaLabel ?? label} className="rangeControl">
       <Typography component="span" variant="caption">
         {label}
       </Typography>
       <Slider
-        aria-label={label}
+        aria-label={ariaLabel ?? label}
         max={bounds.max}
         min={bounds.min}
         onChange={(_, nextValue) => {
