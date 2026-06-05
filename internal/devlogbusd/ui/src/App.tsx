@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  InputAdornment,
   ListItemIcon,
   ListItemText,
   Menu,
@@ -39,6 +40,8 @@ import PauseCircleOutlinedIcon from "@mui/icons-material/PauseCircleOutlined";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import SettingsIcon from "@mui/icons-material/Settings";
 import SubjectIcon from "@mui/icons-material/Subject";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { useMessagesContext } from "@dsherwin/mui-kit";
 
 type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
@@ -1066,11 +1069,13 @@ export default function App() {
   }, [viewMode]);
 
   useEffect(() => {
-    if (activeDialog !== "about") {
+    if (!authReady || loginRequired) {
       return;
     }
     let ignore = false;
-    setAboutError("");
+    if (activeDialog === "about") {
+      setAboutError("");
+    }
     apiJSON<AboutResponse>("/api/about")
       .then((nextAbout) => {
         if (!ignore) {
@@ -1081,13 +1086,15 @@ export default function App() {
         console.error("Failed to load DevLogBus about data", error);
         if (!ignore) {
           setAbout(null);
-          setAboutError("About data unavailable");
+          if (activeDialog === "about") {
+            setAboutError("About data unavailable");
+          }
         }
       });
     return () => {
       ignore = true;
     };
-  }, [activeDialog]);
+  }, [activeDialog, authReady, loginRequired]);
 
   useEffect(() => {
     if (!authReady || loginRequired) {
@@ -1616,7 +1623,8 @@ export default function App() {
             <div>
               <h1>DevLogBus</h1>
               <p>
-                {displayedCount} shown / {scopedRecords.length} buffered
+                version {about?.build.version?.trim() || "loading"} | {displayedCount} shown /{" "}
+                {scopedRecords.length} buffered
               </p>
             </div>
           </div>
@@ -2371,24 +2379,50 @@ function SettingsDialog({
     displayName: "",
     password: "",
   });
+  const [newUserPasswordConfirm, setNewUserPasswordConfirm] = useState("");
+  const [showNewUserPassword, setShowNewUserPassword] = useState(false);
   const [formError, setFormError] = useState("");
   const [settingsError, setSettingsError] = useState("");
   const canEnableLogin = status != null && (status.userCount > 0 || status.loginEnabled);
+  const newUserPasswordsMatch = newUser.password === newUserPasswordConfirm;
+  const passwordVisibilityAdornment = (
+    <InputAdornment position="end">
+      <Tooltip title={showNewUserPassword ? "Hide passwords" : "Show passwords"}>
+        <IconButton
+          aria-label={showNewUserPassword ? "Hide passwords" : "Show passwords"}
+          edge="end"
+          onClick={() => setShowNewUserPassword((current) => !current)}
+          onMouseDown={(event) => event.preventDefault()}
+          size="small"
+        >
+          {showNewUserPassword ? <VisibilityOffIcon fontSize="inherit" /> : <VisibilityIcon fontSize="inherit" />}
+        </IconButton>
+      </Tooltip>
+    </InputAdornment>
+  );
 
   useEffect(() => {
     if (!open) {
       setFormError("");
       setSettingsError("");
       setNewUser({ username: "", displayName: "", password: "" });
+      setNewUserPasswordConfirm("");
+      setShowNewUserPassword(false);
     }
   }, [open]);
 
   const submitUser = async (event: FormEvent) => {
     event.preventDefault();
     setFormError("");
+    if (!newUserPasswordsMatch) {
+      setFormError("Passwords do not match");
+      return;
+    }
     try {
       await onCreateUser(newUser);
       setNewUser({ username: "", displayName: "", password: "" });
+      setNewUserPasswordConfirm("");
+      setShowNewUserPassword(false);
     } catch (createError) {
       setFormError(createError instanceof Error ? createError.message : "Failed to add user");
     }
@@ -2498,8 +2532,28 @@ function SettingsDialog({
                 label="Password"
                 onChange={(event) => setNewUser((current) => ({ ...current, password: event.target.value }))}
                 size="small"
-                type="password"
+                slotProps={{
+                  input: {
+                    endAdornment: passwordVisibilityAdornment,
+                  },
+                }}
+                type={showNewUserPassword ? "text" : "password"}
                 value={newUser.password}
+              />
+              <TextField
+                autoComplete="new-password"
+                error={newUserPasswordConfirm !== "" && !newUserPasswordsMatch}
+                helperText={newUserPasswordConfirm !== "" && !newUserPasswordsMatch ? "Passwords do not match" : " "}
+                label="Confirm password"
+                onChange={(event) => setNewUserPasswordConfirm(event.target.value)}
+                size="small"
+                slotProps={{
+                  input: {
+                    endAdornment: passwordVisibilityAdornment,
+                  },
+                }}
+                type={showNewUserPassword ? "text" : "password"}
+                value={newUserPasswordConfirm}
               />
             </div>
             {formError !== "" && <div className="formError">{formError}</div>}
@@ -2508,7 +2562,9 @@ function SettingsDialog({
                 busy ||
                 newUser.username.trim() === "" ||
                 newUser.displayName.trim() === "" ||
-                newUser.password === ""
+                newUser.password === "" ||
+                newUserPasswordConfirm === "" ||
+                !newUserPasswordsMatch
               }
               startIcon={<PersonAddIcon />}
               type="submit"
