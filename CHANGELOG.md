@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## v1.4.0 - 2026-10-03
+
+This release adds saved investigation workspaces to the embedded browser viewer.
+
+### Highlights
+
 - Added named investigation workspaces to the browser viewer, with save, load,
   update, and delete controls for layouts, source visibility/blocking, filters,
   search, and pane preferences stored in the current browser.
