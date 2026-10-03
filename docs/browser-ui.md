@@ -82,6 +82,34 @@ chatter, or known irrelevant third-party calls.
 
 The blocked-source list can restore blocked sources later.
 
+## Investigation Workspaces
+
+Use **Workspaces** beside the search field to save the current viewer settings
+under a name, such as `Tenant Portal payment debugging`. A workspace captures:
+
+- Merged or by-source mode, source layout, and pane width.
+- Hidden sources and groups, plus the blocked-source list.
+- Merged and per-source level filters, including browser-group child panes.
+- Search text.
+- Inline detail and autoscroll preferences for merged, source, and group panes.
+- Browser-group view modes, layouts, and child pane widths.
+
+Choose **Load** to restore a workspace. **Update** replaces that workspace with
+the current settings after confirmation. **Delete** removes the saved preset
+after confirmation and leaves the current view as it is. Duplicate names are
+rejected; use Update to replace an existing workspace.
+
+Saved workspaces survive refreshes in the same browser profile and viewer
+origin. They are stored locally, are shared by viewer windows at that origin,
+and are not tied to a daemon login or synced to other browsers. Search text and
+source names are part of the saved settings. Opening the viewer starts with its
+usual defaults; load a workspace explicitly when you want it.
+
+Workspaces save preferences, not log records, pause state, selected records,
+theme, or popout windows. Loading a blocked-source list uses the normal viewer
+blocking behavior; the daemon's replay buffer is unchanged. Pane widths adapt
+to the available window size.
+
 ## Popouts
 
 Source groups and individual sources can be popped into separate browser

@@ -7,7 +7,7 @@ VERSION="${VERSION:-$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/nul
 COMMIT="${COMMIT:-$(git -C "$ROOT" rev-parse --short=12 HEAD 2>/dev/null || echo unknown)}"
 BUILD_DATE="${BUILD_DATE:-$(date -u +"%Y-%m-%dT%H:%M:%SZ")}"
 RELEASE_STRICT_VERSION="${RELEASE_STRICT_VERSION:-0}"
-GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.3}"
+GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.8}"
 
 if [[ "$OUT_DIR" != /* ]]; then
 	OUT_DIR="$ROOT/$OUT_DIR"

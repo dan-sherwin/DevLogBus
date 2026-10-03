@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --experimental-strip-types --test tests/workspaces.test.ts",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"

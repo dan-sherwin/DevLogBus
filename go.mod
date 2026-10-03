@@ -1,6 +1,6 @@
 module github.com/dan-sherwin/devlogbus
 
-go 1.26.2
+go 1.26.8
 
 require (
 	github.com/alecthomas/kong v1.15.0
@@ -53,11 +53,11 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/sanity-io/litter v1.5.8 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/mod v0.29.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.37.0 // indirect
-	golang.org/x/text v0.30.0 // indirect
-	golang.org/x/tools v0.38.0 // indirect
+	golang.org/x/mod v0.37.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
+	golang.org/x/tools v0.47.0 // indirect
 	gorm.io/datatypes v1.2.7 // indirect
 	gorm.io/driver/mysql v1.6.0 // indirect
 	gorm.io/gen v0.3.27 // indirect

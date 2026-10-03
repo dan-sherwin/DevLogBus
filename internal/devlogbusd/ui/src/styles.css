@@ -234,6 +234,19 @@ p {
   min-width: 240px;
 }
 
+.workspacesButton.MuiButton-root {
+  height: 38px;
+  border-color: var(--border);
+  background: var(--control-bg);
+  color: var(--text-soft);
+  text-transform: none;
+}
+
+.workspacesButton.MuiButton-root:hover {
+  border-color: var(--border-focus);
+  background: var(--control-hover);
+}
+
 .searchInput .MuiOutlinedInput-root,
 .themeToggles .MuiToggleButton-root,
 .modeToggles .MuiToggleButton-root,
@@ -1418,6 +1431,61 @@ dd {
 .blockedSourceList {
   display: grid;
   gap: 8px;
+}
+
+.workspaceIntro {
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.workspaceSave {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.workspaceSave .MuiTextField-root {
+  flex: 1 1 240px;
+}
+
+.workspaceSave .MuiButton-root {
+  min-height: 40px;
+}
+
+.workspaceList {
+  display: grid;
+  gap: 8px;
+}
+
+.workspaceRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 10px;
+}
+
+.workspaceDescription {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workspaceDescription span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.workspaceActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .blockedSourceRow {

@@ -8,7 +8,7 @@ review.
 
 Requirements:
 
-- Go 1.26.3
+- Go 1.26.8
 - Node 24 or compatible current Node for the embedded UI build
 - npm
 - `golangci-lint`

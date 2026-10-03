@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${1:-$ROOT/dist/release}"
 VERSION="${VERSION:-$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || echo dev)}"
-GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.3}"
+GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.8}"
 
 if [[ "$OUT_DIR" != /* ]]; then
 	OUT_DIR="$ROOT/$OUT_DIR"

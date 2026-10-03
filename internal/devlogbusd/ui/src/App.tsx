@@ -42,16 +42,23 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import SubjectIcon from "@mui/icons-material/Subject";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import WorkspacesOutlinedIcon from "@mui/icons-material/WorkspacesOutlined";
 import { useMessagesContext } from "@dsherwin/mui-kit";
+import WorkspacesDialog from "./WorkspacesDialog";
+import {
+  levels,
+  type LogLevel,
+  type SavedWorkspace,
+  type SourceLayout,
+  type ViewerPreferences,
+  type ViewMode,
+} from "./workspaces";
 
-type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
 type ConnectionState = "connecting" | "online" | "reconnecting";
-type ViewMode = "merged" | "source";
-type SourceLayout = "tiled" | "vertical" | "horizontal";
 type ThemePreference = "system" | "light" | "dark";
 type ResolvedThemeMode = "light" | "dark";
 type PopoutKind = "group" | "source";
-type ActiveDialog = "about" | "blocked" | "help" | "settings" | null;
+type ActiveDialog = "about" | "blocked" | "help" | "settings" | "workspaces" | null;
 
 type AuthUser = {
   username: string;
@@ -200,7 +207,6 @@ async function apiErrorMessage(response: Response): Promise<string> {
 }
 
 const maxVisibleRecordsPerSource = 1000;
-const levels: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR"];
 const layouts: Array<{ label: string; value: SourceLayout }> = [
   { label: "Tiled", value: "tiled" },
   { label: "Vertical", value: "vertical" },
@@ -799,8 +805,43 @@ export default function App() {
   const updateBlockedSources = (nextSources: string[]) => {
     const normalized = normalizeSourceNames(nextSources);
     writeBlockedSources(normalized);
+    blockedSourcesRef.current = normalized;
     setBlockedSources(normalized);
     blockedSourcesChannelRef.current?.postMessage(normalized);
+  };
+  const viewerPreferences: ViewerPreferences = {
+    viewMode,
+    sourceLayout,
+    paneWidth,
+    excludedSources,
+    blockedSources,
+    selectedLevels,
+    perSourceLevels,
+    search,
+    mergedAutoScroll,
+    mergedLineDetails,
+    autoScrollSources,
+    detailSources,
+    groupViewModes,
+    groupLayouts,
+    groupPaneWidths,
+  };
+  const loadWorkspace = ({ preferences }: SavedWorkspace) => {
+    setViewMode(preferences.viewMode);
+    setSourceLayout(preferences.sourceLayout);
+    setPaneWidth(clamp(preferences.paneWidth, paneWidthBounds.min, paneArea.width));
+    setExcludedSources(preferences.excludedSources);
+    updateBlockedSources(preferences.blockedSources);
+    setSelectedLevels(preferences.selectedLevels);
+    setPerSourceLevels(preferences.perSourceLevels);
+    setSearch(preferences.search);
+    setMergedAutoScroll(preferences.mergedAutoScroll);
+    setMergedLineDetails(preferences.mergedLineDetails);
+    setAutoScrollSources(preferences.autoScrollSources);
+    setDetailSources(preferences.detailSources);
+    setGroupViewModes(preferences.groupViewModes);
+    setGroupLayouts(preferences.groupLayouts);
+    setGroupPaneWidths(preferences.groupPaneWidths);
   };
   const loginRequired = authStatus?.loginRequired === true && authStatus.currentUser == null;
   const authReady = authStatus != null && authStatusError === "";
@@ -1726,6 +1767,14 @@ export default function App() {
             value={search}
             variant="outlined"
           />
+          <Button
+            className="workspacesButton"
+            onClick={() => setActiveDialog("workspaces")}
+            startIcon={<WorkspacesOutlinedIcon />}
+            variant="outlined"
+          >
+            Workspaces
+          </Button>
           {viewMode === "source" && sourceLayout === "tiled" && (
             <div aria-label="Source pane sizing" className="paneControls">
               <PaneRange
@@ -2249,6 +2298,12 @@ export default function App() {
         open={activeDialog === "about"}
       />
       <HelpDialog onClose={() => setActiveDialog(null)} open={activeDialog === "help"} />
+      <WorkspacesDialog
+        onClose={() => setActiveDialog(null)}
+        onLoad={loadWorkspace}
+        open={activeDialog === "workspaces"}
+        preferences={viewerPreferences}
+      />
       <BlockedSourcesDialog
         blockedSources={blockedSources}
         onClose={() => setActiveDialog(null)}
@@ -2676,6 +2731,11 @@ function HelpDialog({ onClose, open }: { onClose: () => void; open: boolean }) {
 
           <section className="helpReference">
             <h2>Controls</h2>
+            <HelpControl
+              control="Workspaces"
+              scope="viewer"
+              use="Save named investigation settings and load them again from this browser. Update replaces saved settings; Delete removes the preset."
+            />
             <HelpControl
               control="Merged"
               scope="viewer"

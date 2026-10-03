@@ -25,9 +25,10 @@ command -v java >/dev/null 2>&1 || {
   exit 1
 }
 
-export GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.3}"
+export GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.8}"
 
 npm --prefix internal/devlogbusd/ui ci
+npm --prefix internal/devlogbusd/ui test
 npm --prefix internal/devlogbusd/ui run build
 cmake -S sdk/c -B sdk/c/build -DCMAKE_BUILD_TYPE=Release
 cmake --build sdk/c/build

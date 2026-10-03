@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added named investigation workspaces to the browser viewer, with save, load,
+  update, and delete controls for layouts, source visibility/blocking, filters,
+  search, and pane preferences stored in the current browser.
+- Updated the Go toolchain and `golang.org/x/text` to address security advisories
+  reported by the local quality gate.
 - Fixed a stale Homebrew tap path in the package-manager docs.
 - Set the release workflow to use the Node 24 JavaScript action runtime.
 
